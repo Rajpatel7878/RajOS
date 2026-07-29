@@ -8,6 +8,7 @@ from app.models.user import User
 from app.schemas.chat_schema import ChatRequest
 from app.security.dependencies import get_current_user
 from app.services.ai_service import ai_response
+from app.conversation.conversation_manager import ConversationManager
 
 
 router = APIRouter(
@@ -50,9 +51,18 @@ def send_message(
     db.add(user_message)
 
 
+    conversation_manager = ConversationManager()
+
+    conversation_data = conversation_manager.chat(
+        str(user.id),
+        request.message
+    )
+
     ai_reply = ai_response(
         request.message
     )
+
+    ai_reply["conversation_context"] = conversation_data
 
 
     assistant_message = Message(
