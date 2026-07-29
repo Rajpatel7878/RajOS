@@ -34,4 +34,14 @@ class ToolManager:
             return "documents"
 
 
+        if any(word in text for word in [
+            "productive",
+            "productivity",
+            "progress",
+            "daily report",
+            "weekly report"
+        ]):
+            return "productivity"
+
+
         return None

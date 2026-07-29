@@ -2,6 +2,7 @@ from app.tools.tasks_tool import TasksTool
 from app.tools.notes_tool import NotesTool
 from app.tools.memory_tool import MemoryTool
 from app.tools.document_tool import DocumentTool
+from app.tools.productivity_tool import ProductivityTool
 
 
 class ToolRegistry:
@@ -10,21 +11,11 @@ class ToolRegistry:
 
         self.tools = {}
 
-        self.register(
-            TasksTool()
-        )
-
-        self.register(
-            NotesTool()
-        )
-
-        self.register(
-            MemoryTool()
-        )
-
-        self.register(
-            DocumentTool()
-        )
+        self.register(TasksTool())
+        self.register(NotesTool())
+        self.register(MemoryTool())
+        self.register(DocumentTool())
+        self.register(ProductivityTool())
 
 
     def register(self, tool):
@@ -58,6 +49,4 @@ class ToolRegistry:
             }
 
 
-        return tool.execute(
-            data
-        )
+        return tool.execute(data)
