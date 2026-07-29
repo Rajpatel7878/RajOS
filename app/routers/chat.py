@@ -9,6 +9,7 @@ from app.schemas.chat_schema import ChatRequest
 from app.security.dependencies import get_current_user
 from app.services.ai_service import ai_response
 from app.conversation.conversation_manager import ConversationManager
+from app.memory.memory_engine import MemoryEngine
 
 
 router = APIRouter(
@@ -52,15 +53,22 @@ def send_message(
 
 
     conversation_manager = ConversationManager()
+    memory_engine = MemoryEngine()
 
     conversation_data = conversation_manager.chat(
         str(user.id),
         request.message
     )
 
+    memory_data = memory_engine.process_memory(
+        request.message
+    )
+
     ai_reply = ai_response(
         request.message
     )
+
+    ai_reply["memory"] = memory_data
 
     ai_reply["conversation_context"] = conversation_data
 
@@ -78,7 +86,9 @@ def send_message(
 
     return {
         "conversation_id": conversation.id,
-        "response": ai_reply["response"]
+        "response": ai_reply["response"],
+        "memory": ai_reply["memory"],
+        "conversation_context": ai_reply["conversation_context"]
     }
 
 
