@@ -95,3 +95,39 @@ def delete_task(
     return {
         "message": "Task deleted"
     }
+
+
+@router.patch("/{task_id}/complete")
+def complete_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+
+    from datetime import datetime
+
+    task = db.query(Task).filter(
+        Task.id == task_id,
+        Task.user_id == user.id
+    ).first()
+
+
+    if not task:
+        raise HTTPException(
+            status_code=404,
+            detail="Task not found"
+        )
+
+
+    task.completed = True
+    task.completed_at = datetime.utcnow()
+
+    db.commit()
+    db.refresh(task)
+
+
+    return {
+        "message": "Task completed successfully",
+        "task_id": task.id,
+        "completed_at": task.completed_at
+    }

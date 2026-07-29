@@ -3,10 +3,31 @@ class ProductivityScore:
 
     def calculate(self, progress):
 
-        score = progress.get(
+        completion_rate = progress.get(
             "completion_rate",
             0
         )
+
+        priority_bonus = progress.get(
+            "priority_bonus",
+            0
+        )
+
+        deadline_bonus = progress.get(
+            "deadline_bonus",
+            0
+        )
+
+
+        score = (
+            completion_rate
+            + priority_bonus
+            + deadline_bonus
+        )
+
+
+        if score > 100:
+            score = 100
 
 
         if score >= 80:
@@ -20,6 +41,6 @@ class ProductivityScore:
 
 
         return {
-            "score": score,
+            "score": round(score, 2),
             "level": level
         }

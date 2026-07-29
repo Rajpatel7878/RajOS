@@ -3,14 +3,21 @@ from app.agents.agent import Agent
 
 
 memory_engine = MemoryEngine()
-agent = Agent()
 
 
-def ai_response(message: str):
+def ai_response(
+    message: str,
+    user=None
+):
+
+    agent = Agent()
 
     memories = memory_engine.get_relevant_memories(message)
 
-    agent_result = agent.run(message)
+    agent_result = agent.run(
+        message,
+        user
+    )
 
     return {
         "message": message,

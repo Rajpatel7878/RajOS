@@ -31,9 +31,13 @@ class ProductivityTool(BaseTool):
         notification = None
 
 
-        if analysis["pending_tasks"] > 0:
+        user = data.get("user")
+
+
+        if analysis["pending_tasks"] > 0 and user:
 
             notification = notifier.send_task_reminder(
+                user,
                 f"You have {analysis['pending_tasks']} tasks remaining today"
             )
 
@@ -42,5 +46,6 @@ class ProductivityTool(BaseTool):
             "tool": self.name(),
             "analysis": analysis,
             "score": score,
+            "user_received": user is not None,
             "notification": notification
         }

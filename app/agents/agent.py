@@ -20,7 +20,12 @@ class Agent:
         self.tool_executor = ToolExecutor()
 
 
-    def run(self, user_input: str):
+    def run(
+        self,
+        user_input: str,
+        user=None
+    ):
+
 
         decision = self.decision_engine.decide(
             user_input
@@ -54,7 +59,10 @@ class Agent:
 
             tool_result = self.tool_executor.execute(
                 tool,
-                user_input
+                {
+                    "message": user_input,
+                    "user": user
+                }
             )
 
 

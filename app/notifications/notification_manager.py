@@ -13,17 +13,24 @@ class NotificationManager:
 
     def send_task_reminder(
         self,
+        user,
         message
     ):
 
+        if not user.notifications_enabled:
+            return {
+                "status": "notifications disabled"
+            }
+
+
         return {
             "sms": self.sms.send_sms(
-                "user_phone",
+                user.phone_number,
                 message
             ),
 
             "push": self.push.send_notification(
-                "user_device",
+                user.device_id,
                 message
             )
         }

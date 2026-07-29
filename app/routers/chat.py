@@ -65,7 +65,8 @@ def send_message(
     )
 
     ai_reply = ai_response(
-        request.message
+        request.message,
+        user
     )
 
     ai_reply["memory"] = memory_data
@@ -88,7 +89,8 @@ def send_message(
         "conversation_id": conversation.id,
         "response": ai_reply["response"],
         "memory": ai_reply["memory"],
-        "conversation_context": ai_reply["conversation_context"]
+        "conversation_context": ai_reply["conversation_context"],
+        "agent": ai_reply["agent"]
     }
 
 
