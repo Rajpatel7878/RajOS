@@ -52,3 +52,5 @@ from app.routers import chat
 app.include_router(chat.router)
 from app.routers import documents
 app.include_router(documents.router)
+from app.routers import productivity
+app.include_router(productivity.router)
