@@ -1,40 +1,20 @@
-from app.database.connection import SessionLocal
-from app.models.memory import Memory
+from app.memory.memory_engine import MemoryEngine
 from app.agents.agent import Agent
 
 
-def get_user_memory():
-    db = SessionLocal()
-
-    memories = db.query(Memory).all()
-
-    db.close()
-
-    return [
-        {
-            "key": memory.key,
-            "value": memory.value
-        }
-        for memory in memories
-    ]
+memory_engine = MemoryEngine()
+agent = Agent()
 
 
 def ai_response(message: str):
 
-    memories = get_user_memory()
+    memories = memory_engine.get_relevant_memories(message)
 
-    context = "\n".join(
-        f"{memory['key']}: {memory['value']}"
-        for memory in memories
-    )
-
-    agent = Agent()
-
-    result = agent.run(message)
+    agent_result = agent.run(message)
 
     return {
         "message": message,
-        "memory_context": context,
-        "agent": result,
-        "response": "RajOS AI Agent completed the request successfully."
+        "memory_context": memories[:3],
+        "agent": agent_result,
+        "response": "AI assistant is ready with intelligent memory."
     }
