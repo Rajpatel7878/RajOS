@@ -1,14 +1,14 @@
 from app.agents.planner import Planner
-from app.agents.executor import Executor
 from app.agents.tool_manager import ToolManager
+from app.tools.tool_registry import ToolRegistry
 
 
 class Agent:
 
     def __init__(self):
         self.planner = Planner()
-        self.executor = Executor()
         self.tool_manager = ToolManager()
+        self.registry = ToolRegistry()
 
     def run(self, user_input: str):
 
@@ -16,11 +16,11 @@ class Agent:
 
         plan = self.planner.create_plan(user_input)
 
-        result = self.executor.execute(plan)
+        tool_result = self.registry.execute(tool, user_input)
 
         return {
             "tool_selected": tool,
             "plan": plan,
-            "execution": result,
-            "status": "Agent completed successfully"
+            "tool_result": tool_result,
+            "status": "Agent executed successfully"
         }
