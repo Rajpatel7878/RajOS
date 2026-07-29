@@ -4,16 +4,34 @@ class ToolManager:
 
         text = user_input.lower()
 
-        if "note" in text:
+
+        if any(word in text for word in [
+            "note",
+            "save note"
+        ]):
             return "notes"
 
-        if "task" in text:
+
+        if any(word in text for word in [
+            "task",
+            "todo"
+        ]):
             return "tasks"
 
-        if "memory" in text:
+
+        if any(word in text for word in [
+            "memory",
+            "remember"
+        ]):
             return "memory"
 
-        if "document" in text or "pdf" in text:
+
+        if any(word in text for word in [
+            "document",
+            "pdf",
+            "file"
+        ]):
             return "documents"
 
-        return "chat"
+
+        return None
