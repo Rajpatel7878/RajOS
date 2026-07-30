@@ -33,14 +33,23 @@ def send_message(
     user: User = Depends(get_current_user)
 ):
 
-    conversation = Conversation(
-        title=request.message[:30],
-        user_id=user.id
+    conversation = (
+        db.query(Conversation)
+        .filter(Conversation.user_id == user.id)
+        .order_by(Conversation.id.desc())
+        .first()
     )
 
-    db.add(conversation)
-    db.commit()
-    db.refresh(conversation)
+    if conversation is None:
+
+        conversation = Conversation(
+            title=request.message[:30],
+            user_id=user.id
+        )
+
+        db.add(conversation)
+        db.commit()
+        db.refresh(conversation)
 
 
     user_message = Message(
@@ -55,9 +64,20 @@ def send_message(
     conversation_manager = ConversationManager()
     memory_engine = MemoryEngine()
 
+    history = db.query(Message).filter(
+        Message.conversation_id == conversation.id
+    ).all()
+
+    history_text = [
+        msg.content
+        for msg in history
+        if msg.role == "user"
+    ]
+
     conversation_data = conversation_manager.chat(
         str(user.id),
-        request.message
+        request.message,
+        history_text
     )
 
     memory_data = memory_engine.process_memory(
