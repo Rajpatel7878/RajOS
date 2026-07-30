@@ -13,6 +13,7 @@ from app.services.profile_query import ProfileQuery
 from app.services.preference_extractor import PreferenceExtractor
 from app.services.preference_manager import PreferenceManager
 from app.services.preference_query import PreferenceQuery
+from app.services.context_builder import ContextBuilder
 from app.conversation.conversation_manager import ConversationManager
 from app.memory.memory_engine import MemoryEngine
 
@@ -69,6 +70,7 @@ def send_message(
     conversation_manager = ConversationManager()
     memory_engine = MemoryEngine()
     profile_manager = ProfileManager()
+    context_builder = ContextBuilder()
 
     profile_manager.process(
         db,
@@ -118,6 +120,13 @@ def send_message(
         history_text
     )
 
+    full_context = context_builder.build(
+        db,
+        user.id,
+        memory_data=[],
+        conversation_history=history_text
+    )
+
     if profile_name:
         memory_data = []
     else:
@@ -139,7 +148,7 @@ def send_message(
         ai_reply = ai_response(
             request.message,
             user,
-            conversation_data
+            full_context
         )
 
     ai_reply["memory"] = memory_data
