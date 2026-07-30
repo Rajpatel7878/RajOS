@@ -5,19 +5,13 @@ from app.agents.agent import Agent
 memory_engine = MemoryEngine()
 
 
-def ai_response(
-    message: str,
-    user=None
-):
+def ai_response(message: str, user=None):
 
     agent = Agent()
 
     memories = memory_engine.get_relevant_memories(message)
 
-    agent_result = agent.run(
-        message,
-        user
-    )
+    agent_result = agent.run(message, user)
 
     response = "I understood your request."
 
@@ -26,7 +20,6 @@ def ai_response(
     if tool_result and tool_result.get("status") == "success":
 
         result = tool_result.get("result", {})
-
         tool = result.get("tool")
 
         if tool == "productivity":
@@ -45,35 +38,37 @@ def ai_response(
         elif tool == "notes":
 
             if "notes" in result:
-
-                response = (
-                    f"📝 I found {result.get('count',0)} notes in your account."
-                )
-
+                response = f"📝 I found {result.get('count',0)} notes."
             else:
-
                 response = (
-                    f"✅ Your note has been saved successfully.\n\n"
+                    f"✅ Your note has been saved.\n\n"
                     f"Title: {result.get('title')}\n"
                     f"Content: {result.get('content')}"
                 )
 
-        elif tool == "tasks":
-
-            response = "✅ Task operation completed successfully."
-
-        elif tool == "memory":
-
-            response = "🧠 Memory updated successfully."
-
         elif tool == "documents":
 
-            response = "📄 Document processed successfully."
+            if "documents" in result:
+                response = f"📄 I found {result.get('count',0)} documents."
+            else:
+                response = (
+                    f"📄 Document '{result.get('filename')}' has been stored successfully."
+                )
+
+        elif tool == "tasks":
+            response = "✅ Task completed successfully."
+
+        elif tool == "memory":
+            response = "🧠 Memory updated successfully."
 
     elif memories:
 
+        best = memories[0]
+
+        value = str(best.get("value", ""))
+
         response = (
-            f"I found {len(memories[:3])} relevant memories related to your request."
+            f"Based on what I remember:\n\n{value}"
         )
 
     return {

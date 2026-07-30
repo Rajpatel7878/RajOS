@@ -12,18 +12,27 @@ class MemoryEngine:
         self.ranker = MemoryRanker()
         self.manager = MemoryManager()
 
-
     def save_memory(self, key, value):
         return self.store.save(key, value)
-
 
     def process_memory(self, message):
 
         memories = self.manager.process(message)
 
+        existing = self.retriever.get_all()
+
         saved = []
 
         for memory in memories:
+
+            duplicate = any(
+                str(m.get("value", "")).lower() ==
+                str(memory.get("value", "")).lower()
+                for m in existing
+            )
+
+            if duplicate:
+                continue
 
             self.store.save(
                 memory["category"],
@@ -33,7 +42,6 @@ class MemoryEngine:
             saved.append(memory)
 
         return saved
-
 
     def get_relevant_memories(self, query):
 
@@ -46,6 +54,17 @@ class MemoryEngine:
 
         return ranked
 
+    def search(self, query):
+
+        return self.get_relevant_memories(query)
+
+    def memory_stats(self):
+
+        memories = self.retriever.get_all()
+
+        return {
+            "total_memories": len(memories)
+        }
 
     def remember(self, key, value):
 
