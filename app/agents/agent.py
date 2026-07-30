@@ -6,6 +6,8 @@ from app.agents.tool_manager import ToolManager
 from app.tools.tool_registry import ToolRegistry
 from app.tools.tool_executor import ToolExecutor
 
+from app.resolver.reference_resolver import ReferenceResolver
+
 
 class Agent:
 
@@ -19,17 +21,50 @@ class Agent:
         self.registry = ToolRegistry()
         self.tool_executor = ToolExecutor()
 
+        self.resolver = ReferenceResolver()
+
 
     def run(
         self,
         user_input: str,
-        user=None
+        user=None,
+        context=None
     ):
+
+        context = context or {}
+
+
+        reference_context = context.get(
+            "context",
+            context
+        ) if context else {}
+
+
+        reference = self.resolver.resolve(
+            user_input,
+            reference_context
+        )
+
 
 
         decision = self.decision_engine.decide(
             user_input
         )
+
+
+        if reference["has_reference"]:
+
+            if reference["type"] == "note":
+
+                decision["intent"] = "note_reference"
+                decision["action"] = "retrieve_note"
+
+
+            elif reference["type"] == "task":
+
+                decision["intent"] = "task_reference"
+                decision["action"] = "retrieve_task"
+
 
 
         plan = self.planner.create_plan(
@@ -61,13 +96,15 @@ class Agent:
                 tool,
                 {
                     "message": user_input,
-                    "user": user
+                    "user": user,
+                    "reference": reference
                 }
             )
 
 
         return {
             "decision": decision,
+            "reference": reference,
             "plan": plan,
             "execution": execution,
             "tool_selected": tool_name,

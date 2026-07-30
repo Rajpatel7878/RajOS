@@ -86,7 +86,8 @@ def send_message(
 
     ai_reply = ai_response(
         request.message,
-        user
+        user,
+        conversation_data
     )
 
     ai_reply["memory"] = memory_data

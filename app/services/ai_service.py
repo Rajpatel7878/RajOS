@@ -5,13 +5,13 @@ from app.agents.agent import Agent
 memory_engine = MemoryEngine()
 
 
-def ai_response(message: str, user=None):
+def ai_response(message: str, user=None, context=None):
 
     agent = Agent()
 
     memories = memory_engine.get_relevant_memories(message)
 
-    agent_result = agent.run(message, user)
+    agent_result = agent.run(message, user, context)
 
     response = "I understood your request."
 

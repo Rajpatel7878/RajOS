@@ -1,5 +1,6 @@
 class ContextBuilder:
 
+
     def build(self, user_id, history=None):
 
         history = history or []
@@ -9,32 +10,46 @@ class ContextBuilder:
         last_intent = None
         last_entity = None
 
-        if last_message:
 
-            text = last_message.lower()
+        for message in reversed(history):
+
+            text = message.lower()
+
 
             if "note" in text:
+
                 last_intent = "note"
-                last_entity = last_message
+                last_entity = message
+                break
+
 
             elif "task" in text:
+
                 last_intent = "task"
-                last_entity = last_message
+                last_entity = message
+                break
+
 
             elif any(word in text for word in [
                 "document",
                 "pdf",
                 "file"
             ]):
+
                 last_intent = "document"
-                last_entity = last_message
+                last_entity = message
+                break
+
 
             elif any(word in text for word in [
                 "memory",
                 "remember"
             ]):
+
                 last_intent = "memory"
-                last_entity = last_message
+                last_entity = message
+                break
+
 
         return {
             "user_id": user_id,
