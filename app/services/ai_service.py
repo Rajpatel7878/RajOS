@@ -9,9 +9,17 @@ def ai_response(message: str, user=None, context=None):
 
     agent = Agent()
 
+    user_preferences = {}
+
+    if context:
+        user_preferences = context.get("preferences", {})
+
+
     memories = memory_engine.get_relevant_memories(message)
 
     agent_result = agent.run(message, user, context)
+
+    response_style = user_preferences.get("response_style")
 
     response = "I understood your request."
 
@@ -70,6 +78,12 @@ def ai_response(message: str, user=None, context=None):
         response = (
             f"Based on what I remember:\n\n{value}"
         )
+
+    if response_style == "short":
+        response = response[:200]
+
+    elif response_style == "detailed":
+        response = response + "\n\nI can provide more details if needed."
 
     return {
         "message": message,
