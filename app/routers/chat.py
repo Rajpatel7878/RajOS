@@ -8,6 +8,8 @@ from app.models.user import User
 from app.schemas.chat_schema import ChatRequest
 from app.security.dependencies import get_current_user
 from app.services.ai_service import ai_response
+from app.services.profile_manager import ProfileManager
+from app.services.profile_query import ProfileQuery
 from app.conversation.conversation_manager import ConversationManager
 from app.memory.memory_engine import MemoryEngine
 
@@ -63,6 +65,25 @@ def send_message(
 
     conversation_manager = ConversationManager()
     memory_engine = MemoryEngine()
+    profile_manager = ProfileManager()
+
+    profile_manager.process(
+        db,
+        user.id,
+        request.message
+    )
+
+    profile_query = ProfileQuery()
+
+    profile_name = None
+
+    if 'name' in request.message.lower():
+
+        profile_name = profile_query.get_profile(
+            db,
+            user.id,
+            'name'
+        )
 
     history = db.query(Message).filter(
         Message.conversation_id == conversation.id
@@ -80,15 +101,29 @@ def send_message(
         history_text
     )
 
-    memory_data = memory_engine.process_memory(
-        request.message
-    )
+    if profile_name:
+        memory_data = []
+    else:
+        memory_data = memory_engine.process_memory(
+            request.message
+        )
 
-    ai_reply = ai_response(
-        request.message,
-        user,
-        conversation_data
-    )
+    if profile_name:
+
+        ai_reply = {
+            "response": f"Your name is {profile_name}.",
+            "memory": [],
+            "conversation_context": conversation_data,
+            "agent": {}
+        }
+
+    else:
+
+        ai_reply = ai_response(
+            request.message,
+            user,
+            conversation_data
+        )
 
     ai_reply["memory"] = memory_data
 
