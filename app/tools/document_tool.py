@@ -14,9 +14,61 @@ class DocumentTool(BaseTool):
 
         try:
 
+            message = ""
+
+            if isinstance(data, dict):
+                message = data.get("message", "")
+            else:
+                message = str(data)
+
+            lower = message.lower()
+
+            if "show" in lower or "list" in lower:
+
+                documents = db.query(Document).all()
+
+                return {
+                    "tool": self.name(),
+                    "status": "success",
+                    "count": len(documents),
+                    "documents": [
+                        {
+                            "id": doc.id,
+                            "filename": doc.filename
+                        }
+                        for doc in documents
+                    ]
+                }
+
+            if "search" in lower:
+
+                keyword = (
+                    lower.replace("search", "")
+                    .replace("document", "")
+                    .replace("documents", "")
+                    .strip()
+                )
+
+                documents = db.query(Document).filter(
+                    Document.filename.ilike(f"%{keyword}%")
+                ).all()
+
+                return {
+                    "tool": self.name(),
+                    "status": "success",
+                    "count": len(documents),
+                    "documents": [
+                        {
+                            "id": doc.id,
+                            "filename": doc.filename
+                        }
+                        for doc in documents
+                    ]
+                }
+
             document = Document(
-                filename=data,
-                content=f"Content for {data}",
+                filename=message,
+                content=f"Content for {message}",
                 user_id=None
             )
 
