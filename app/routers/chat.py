@@ -10,6 +10,9 @@ from app.security.dependencies import get_current_user
 from app.services.ai_service import ai_response
 from app.services.profile_manager import ProfileManager
 from app.services.profile_query import ProfileQuery
+from app.services.preference_extractor import PreferenceExtractor
+from app.services.preference_manager import PreferenceManager
+from app.services.preference_query import PreferenceQuery
 from app.conversation.conversation_manager import ConversationManager
 from app.memory.memory_engine import MemoryEngine
 
@@ -74,6 +77,9 @@ def send_message(
     )
 
     profile_query = ProfileQuery()
+    preference_extractor = PreferenceExtractor()
+    preference_manager = PreferenceManager()
+    preference_query = PreferenceQuery()
 
     profile_name = None
 
@@ -83,6 +89,17 @@ def send_message(
             db,
             user.id,
             'name'
+        )
+
+    preference = preference_extractor.extract(request.message)
+
+    if preference:
+        key, value = preference
+        preference_manager.save_preference(
+            db,
+            user.id,
+            key,
+            value
         )
 
     history = db.query(Message).filter(

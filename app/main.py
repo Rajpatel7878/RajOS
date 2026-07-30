@@ -19,6 +19,8 @@ from app.routes.auth import router as auth_router
 app.include_router(auth_router)
 
 
+from app.models.preference import UserPreference
+
 Base.metadata.create_all(bind=engine)
 
 # Root endpoint
@@ -40,6 +42,7 @@ def health():
 from app.routes.user import router as user_router
 app.include_router(user_router)
 from app.models import task
+
 from app.routers import tasks
 app.include_router(tasks.router)
 from app.routers import notes
