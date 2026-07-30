@@ -4,20 +4,27 @@ class ToolManager:
 
         text = user_input.lower()
 
-
         if any(word in text for word in [
             "note",
-            "save note"
+            "notes",
+            "save note",
+            "create note",
+            "add note",
+            "write note",
+            "show note",
+            "show notes",
+            "list notes",
+            "my notes"
         ]):
             return "notes"
 
-
         if any(word in text for word in [
             "task",
-            "todo"
+            "tasks",
+            "todo",
+            "complete task"
         ]):
             return "tasks"
-
 
         if any(word in text for word in [
             "memory",
@@ -25,14 +32,13 @@ class ToolManager:
         ]):
             return "memory"
 
-
         if any(word in text for word in [
             "document",
+            "documents",
             "pdf",
             "file"
         ]):
             return "documents"
-
 
         if any(word in text for word in [
             "productive",
@@ -42,6 +48,5 @@ class ToolManager:
             "weekly report"
         ]):
             return "productivity"
-
 
         return None

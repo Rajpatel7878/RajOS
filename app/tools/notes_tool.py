@@ -13,9 +13,37 @@ class NotesTool(BaseTool):
         db = SessionLocal()
 
         try:
+
+            message = ""
+
+            if isinstance(data, dict):
+                message = data.get("message", "")
+            else:
+                message = str(data)
+
+            lower = message.lower()
+
+            if "show" in lower or "list" in lower:
+
+                notes = db.query(Note).all()
+
+                return {
+                    "tool": self.name(),
+                    "status": "success",
+                    "count": len(notes),
+                    "notes": [
+                        {
+                            "id": note.id,
+                            "title": note.title,
+                            "content": note.content
+                        }
+                        for note in notes
+                    ]
+                }
+
             note = Note(
                 title="AI Note",
-                content=data
+                content=message
             )
 
             db.add(note)
