@@ -66,3 +66,6 @@ app.include_router(automation_router.router)
 
 from app.embeddings.embedding_router import router as embedding_router
 app.include_router(embedding_router)
+
+from app.vector_db.vector_router import router as vector_router
+app.include_router(vector_router)

@@ -9,7 +9,7 @@ from app.security.dependencies import get_current_user
 
 from app.rag.document_processor import process_document
 from app.embeddings.embedding_service import embedding_service
-from app.rag.vector_store import add_document
+from app.vector_db.vector_service import vector_service
 
 
 router = APIRouter(
@@ -57,7 +57,7 @@ def upload_document(
             chunk
         )
 
-        add_document(
+        vector_service.add_vector(
             doc_id=f"{new_document.id}_{index}",
             text=chunk,
             embedding=embedding
@@ -83,7 +83,7 @@ def get_documents(
 
 
 from app.schemas.document_schema import SearchRequest
-from app.rag.vector_store import search_document
+
 
 
 @router.post("/search")
@@ -96,7 +96,7 @@ def search_documents(
         request.query
     )
 
-    results = search_document(
+    results = vector_service.search_vectors(
         query_embedding
     )
 
