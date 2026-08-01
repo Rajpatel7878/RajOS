@@ -13,9 +13,25 @@ class TasksTool(BaseTool):
         db = SessionLocal()
 
         try:
+
+            if isinstance(data, dict):
+                title = data.get("message", "").strip()
+                user = data.get("user")
+            else:
+                title = str(data).strip()
+                user = None
+
+            if not title:
+                return {
+                    "tool": self.name(),
+                    "status": "error",
+                    "message": "Task title cannot be empty."
+                }
+
             task = Task(
-                title=data,
-                completed=False
+                title=title,
+                completed=False,
+                user_id=getattr(user, "id", None)
             )
 
             db.add(task)

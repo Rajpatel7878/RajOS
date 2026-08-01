@@ -18,6 +18,20 @@ class Planner:
                 "Confirm storage"
             ],
 
+            "document_management": [
+                "Understand document request",
+                "Identify requested operation",
+                "Process document",
+                "Confirm completion"
+            ],
+
+            "productivity_analysis": [
+                "Collect productivity data",
+                "Analyze metrics",
+                "Generate productivity insights",
+                "Return report"
+            ],
+
             "information_search": [
                 "Understand search query",
                 "Find relevant information",
@@ -32,6 +46,18 @@ class Planner:
                 "Provide action plan"
             ],
 
+            "note_reference": [
+                "Resolve referenced note",
+                "Retrieve note",
+                "Generate response"
+            ],
+
+            "task_reference": [
+                "Resolve referenced task",
+                "Retrieve task",
+                "Generate response"
+            ],
+
             "general": [
                 "Understand user request",
                 "Check memory",
@@ -40,12 +66,8 @@ class Planner:
             ]
         }
 
-
         return {
             "goal": user_input,
             "intent": intent,
-            "steps": plans.get(
-                intent,
-                plans["general"]
-            )
+            "steps": plans.get(intent, plans["general"])
         }

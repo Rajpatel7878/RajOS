@@ -84,7 +84,7 @@ class Agent:
 
 
         tool_result = None
-
+        tool_found = False
 
         if tool_name:
 
@@ -92,15 +92,17 @@ class Agent:
                 tool_name
             )
 
-            tool_result = self.tool_executor.execute(
-                tool,
-                {
-                    "message": user_input,
-                    "user": user,
-                    "reference": reference
-                }
-            )
+            if tool:
+                tool_found = True
 
+                tool_result = self.tool_executor.execute(
+                    tool,
+                    {
+                        "message": user_input,
+                        "user": user,
+                        "reference": reference
+                    }
+                )
 
         return {
             "decision": decision,
@@ -108,6 +110,9 @@ class Agent:
             "plan": plan,
             "execution": execution,
             "tool_selected": tool_name,
+            "tool_found": tool_found,
+            "steps_executed": len(plan.get("steps", [])),
+            "agent_version": "v1",
             "tool_result": tool_result,
             "status": "Agent executed successfully"
         }
