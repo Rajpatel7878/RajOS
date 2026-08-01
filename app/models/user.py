@@ -51,3 +51,9 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+
+    automations = relationship(
+        "Automation",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

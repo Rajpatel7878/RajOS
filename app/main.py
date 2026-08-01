@@ -60,3 +60,6 @@ app.include_router(productivity.router)
 from app.search.search_router import router as search_router
 app.include_router(search_router)
 
+
+from app.automation import automation_router
+app.include_router(automation_router.router)
