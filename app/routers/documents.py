@@ -8,7 +8,7 @@ from app.models.user import User
 from app.security.dependencies import get_current_user
 
 from app.rag.document_processor import process_document
-from app.rag.embeddings import create_embedding
+from app.embeddings.embedding_service import embedding_service
 from app.rag.vector_store import add_document
 
 
@@ -53,7 +53,7 @@ def upload_document(
         processed["chunks"]
     ):
 
-        embedding = create_embedding(
+        embedding = embedding_service.generate_embedding(
             chunk
         )
 
@@ -92,7 +92,7 @@ def search_documents(
     user: User = Depends(get_current_user)
 ):
 
-    query_embedding = create_embedding(
+    query_embedding = embedding_service.generate_embedding(
         request.query
     )
 

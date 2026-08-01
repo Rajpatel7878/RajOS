@@ -63,3 +63,6 @@ app.include_router(search_router)
 
 from app.automation import automation_router
 app.include_router(automation_router.router)
+
+from app.embeddings.embedding_router import router as embedding_router
+app.include_router(embedding_router)
