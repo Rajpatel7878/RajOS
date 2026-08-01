@@ -72,3 +72,6 @@ app.include_router(vector_router)
 
 from app.rag.rag_router import router as rag_router
 app.include_router(rag_router)
+
+from app.llm.llm_router_api import router as llm_router
+app.include_router(llm_router)
