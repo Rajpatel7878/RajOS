@@ -69,3 +69,6 @@ app.include_router(embedding_router)
 
 from app.vector_db.vector_router import router as vector_router
 app.include_router(vector_router)
+
+from app.rag.rag_router import router as rag_router
+app.include_router(rag_router)

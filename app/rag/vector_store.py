@@ -7,7 +7,7 @@ client = chromadb.PersistentClient(
 
 
 collection = client.get_or_create_collection(
-    name="rajOS_documents"
+    name="rajOS_knowledge"
 )
 
 
@@ -22,6 +22,7 @@ def add_document(
         documents=[text],
         embeddings=[embedding]
     )
+
 
 
 def search_document(
