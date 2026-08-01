@@ -31,7 +31,6 @@ class User(Base):
         default=True
     )
 
-
     tasks = relationship(
         "Task",
         back_populates="user"
@@ -45,4 +44,10 @@ class User(Base):
     memories = relationship(
         "Memory",
         back_populates="user"
+    )
+
+    documents = relationship(
+        "Document",
+        back_populates="user",
+        cascade="all, delete-orphan"
     )

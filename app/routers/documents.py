@@ -103,3 +103,84 @@ def search_documents(
     return {
         "results": results
     }
+
+from fastapi import HTTPException
+from app.schemas.document_schema import DocumentUpdate
+
+
+@router.get("/{document_id}")
+def get_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == user.id
+    ).first()
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    return document
+
+
+@router.put("/{document_id}")
+def update_document(
+    document_id: int,
+    request: DocumentUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == user.id
+    ).first()
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    if request.filename is not None:
+        document.filename = request.filename
+
+    if request.content is not None:
+        document.content = request.content
+
+    db.commit()
+    db.refresh(document)
+
+    return {
+        "message": "Document updated successfully",
+        "document": document
+    }
+
+
+@router.delete("/{document_id}")
+def delete_document(
+    document_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    document = db.query(Document).filter(
+        Document.id == document_id,
+        Document.user_id == user.id
+    ).first()
+
+    if not document:
+        raise HTTPException(
+            status_code=404,
+            detail="Document not found"
+        )
+
+    db.delete(document)
+    db.commit()
+
+    return {
+        "message": "Document deleted successfully"
+    }
