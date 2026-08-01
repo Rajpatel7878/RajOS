@@ -57,3 +57,6 @@ from app.routers import documents
 app.include_router(documents.router)
 from app.routers import productivity
 app.include_router(productivity.router)
+from app.search.search_router import router as search_router
+app.include_router(search_router)
+
