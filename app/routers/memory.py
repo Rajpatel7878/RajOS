@@ -3,9 +3,10 @@ from sqlalchemy.orm import Session
 
 from app.database.connection import SessionLocal
 from app.models.memory import Memory
-from app.schemas.memory_schema import MemoryCreate
+from app.schemas.memory_schema import (MemoryCreate, MemoryProcessRequest, MemorySearchRequest, MemoryStatsResponse)
 from app.security.dependencies import get_current_user
 from app.models.user import User
+from app.memory.memory_engine import MemoryEngine
 
 
 router = APIRouter(prefix="/memory", tags=["Memory"])
@@ -74,3 +75,41 @@ def delete_memory(
     return {
         "message": "Memory deleted"
     }
+
+
+memory_engine = MemoryEngine()
+
+
+@router.post("/process")
+def process_memory(
+    request: MemoryProcessRequest,
+    user: User = Depends(get_current_user)
+):
+
+    return {
+        "status": "success",
+        "memories": memory_engine.process_memory(
+            request.message
+        )
+    }
+
+
+
+@router.post("/search")
+def search_memory(
+    request: MemorySearchRequest,
+    user: User = Depends(get_current_user)
+):
+
+    return memory_engine.search(
+        request.query
+    )
+
+
+
+@router.get("/stats", response_model=MemoryStatsResponse)
+def memory_stats(
+    user: User = Depends(get_current_user)
+):
+
+    return memory_engine.memory_stats()
