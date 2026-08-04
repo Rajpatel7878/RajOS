@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { getDashboardStats, getDashboardActivity } from '@/services/api/dashboard';
 import { motion } from 'framer-motion';
 import {
   Activity,
@@ -33,7 +35,6 @@ import { AppShell } from '@/components/app-shell';
 import { GlassCard } from '@/components/glass-card';
 import { StatCard } from '@/components/stat-card';
 import {
-  dashboardStats,
   activityTimeline,
   usageChart,
   llmDistribution,
@@ -57,6 +58,21 @@ const statusColors: Record<string, string> = {
 };
 
 export default function DashboardPage() {
+  const [stats, setStats] = useState<any>(null);
+  const [activity, setActivity] = useState<any[]>([]);
+
+  useEffect(() => {
+    Promise.all([getDashboardStats(), getDashboardActivity()])
+      .then(([s, a]) => {
+        console.log("REAL DASHBOARD STATS:", s);
+        console.log("REAL DASHBOARD ACTIVITY:", a);
+        setStats(s);
+        setActivity(a);
+      })
+      .catch(console.error);
+  }, []);
+  ;
+
   return (
     <AppShell>
       {/* Welcome banner */}
@@ -93,7 +109,12 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        {dashboardStats.map((stat, i) => (
+        {stats && [
+          { id: "tasks", label: "Total Tasks", value: String(stats.tasks), change: "", trend: "up", icon: "CheckSquare", sparkline: [] },
+          { id: "completed_tasks", label: "Completed Tasks", value: String(stats.completed_tasks), change: "", trend: "up", icon: "CheckCircle", sparkline: [] },
+          { id: "notes", label: "Notes", value: String(stats.notes), change: "", trend: "up", icon: "FileText", sparkline: [] },
+          { id: "memories", label: "Memories", value: String(stats.memories), change: "", trend: "up", icon: "BrainCircuit", sparkline: [] },
+        ].map((stat, i) => (
           <StatCard key={stat.id} stat={stat} delay={i * 0.06} />
         ))}
       </div>
