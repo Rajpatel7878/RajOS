@@ -25,17 +25,17 @@ import {
   Lightbulb,
   MessageSquare,
 } from 'lucide-react';
-import dynamic from 'next/dynamic';
+import nextDynamic from 'next/dynamic';
 import { SectionHeading } from '@/components/section-heading';
 import { LandingNav } from '@/components/landing-nav';
 import { AnimatedCounter } from '@/components/animated-counter';
 import { Button } from '@/components/ui/button';
 import { GlassCard } from '@/components/glass-card';
+import { OrbitalSystem } from '@/components/orbital-system';
 import { pricingTiers } from '@/lib/data';
 
-const AICore = dynamic(() => import('@/components/three/ai-core').then(m => m.AICore), { ssr: false });
-const NeuralBackground = dynamic(() => import('@/components/three/neural-background').then(m => m.NeuralBackground), { ssr: false });
-const GradientMesh = dynamic(() => import('@/components/gradient-mesh').then(m => m.GradientMesh), { ssr: false });
+const NeuralBackground = nextDynamic(() => import('@/components/three/neural-background').then(m => m.NeuralBackground), { ssr: false });
+const GradientMesh = nextDynamic(() => import('@/components/gradient-mesh').then(m => m.GradientMesh), { ssr: false });
 
 const features = [
   {
@@ -131,8 +131,8 @@ export default function LandingPage() {
     target: heroRef,
     offset: ['start start', 'end start'],
   });
-  const heroY = useTransform(scrollYProgress, [0, 1], [0, 120]);
-  const heroOpacity = useTransform(scrollYProgress, [0, 0.7], [1, 0]);
+  const heroY = useTransform(scrollYProgress, [0, 1], [0, 60]);
+  const heroOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0]);
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-background text-foreground">
@@ -145,7 +145,7 @@ export default function LandingPage() {
       {/* Hero */}
       <section
         ref={heroRef}
-        className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 pt-16 text-center"
+        className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 pb-24 pt-16 text-center"
       >
         <motion.div style={{ y: heroY, opacity: heroOpacity }} className="flex flex-col items-center">
           <motion.div
@@ -158,15 +158,14 @@ export default function LandingPage() {
             Introducing RajOS 1.0 — The AI Operating System
           </motion.div>
 
-          {/* 3D Core */}
+          {/* Orbital System */}
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 1.2, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-            className="relative mb-6 h-[340px] w-full max-w-[480px] sm:h-[420px]"
+            className="relative mb-6 h-[380px] w-full max-w-[500px]"
           >
-            <div className="absolute left-1/2 top-1/2 h-48 w-48 -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-500/20 blur-[100px] sm:h-64 sm:w-64" />
-            <AICore className="absolute inset-0" />
+            <OrbitalSystem className="absolute inset-0" />
           </motion.div>
 
           <motion.h1
@@ -200,7 +199,7 @@ export default function LandingPage() {
               size="lg"
               className="group h-12 gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 px-8 text-base font-semibold text-white shadow-xl shadow-sky-500/25 transition-all hover:from-sky-400 hover:to-cyan-400 hover:shadow-sky-500/40"
             >
-              <Link href="/dashboard">
+              <Link href="/login">
                 Launch RajOS
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </Link>
@@ -236,7 +235,7 @@ export default function LandingPage() {
       </section>
 
       {/* Stats bar */}
-      <section className="relative z-10 border-y border-white/[0.06] bg-black/20 backdrop-blur-sm">
+      <section className="relative z-30 border-y border-white/[0.06] bg-black/50 backdrop-blur-xl">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-px px-6 lg:grid-cols-4 lg:px-8">
           {stats.map((s, i) => (
             <div

@@ -12,12 +12,17 @@ import {
   BookOpen,
   BarChart3,
   Settings,
+  CheckSquare,
+  StickyNote,
+  FileText,
+  Workflow,
+  User,
   ChevronLeft,
   Sparkles,
   Zap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { navItems } from '@/lib/data';
+import { navSections } from '@/lib/data';
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   LayoutDashboard,
@@ -27,6 +32,11 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   BookOpen,
   BarChart3,
   Settings,
+  CheckSquare,
+  StickyNote,
+  FileText,
+  Workflow,
+  User,
 };
 
 export function Sidebar({
@@ -87,70 +97,77 @@ export function Sidebar({
       </button>
 
       {/* Nav */}
-      <nav className="flex flex-1 flex-col gap-1 px-3 py-2">
-        <AnimatePresence>
-          {!collapsed && (
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="px-3 pb-2 pt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60"
-            >
-              Workspace
-            </motion.p>
-          )}
-        </AnimatePresence>
-        {navItems.map((item) => {
-          const Icon = iconMap[item.icon] ?? LayoutDashboard;
-          const active =
-            pathname === item.href || pathname.startsWith(item.href + '/');
-          return (
-            <Link
-              key={item.href}
-              href={item.href}
-              className={cn(
-                'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
-                active
-                  ? 'text-white'
-                  : 'text-muted-foreground hover:text-white hover:bg-white/[0.04]'
+      <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-3 py-2">
+        {navSections.map((section) => (
+          <div key={section.heading} className="flex flex-col gap-1">
+            <AnimatePresence>
+              {!collapsed && (
+                <motion.p
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="px-3 pb-2 pt-4 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/60"
+                >
+                  {section.heading}
+                </motion.p>
               )}
-            >
-              {active && (
-                <motion.div
-                  layoutId="sidebar-active"
-                  className="absolute inset-0 rounded-xl border border-sky-400/20 bg-gradient-to-r from-sky-500/15 to-cyan-500/5"
-                  transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-                />
-              )}
-              {active && (
-                <motion.div
-                  layoutId="sidebar-indicator"
-                  className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-sky-400 to-cyan-400"
-                />
-              )}
-              <Icon
-                className={cn(
-                  'relative h-[18px] w-[18px] shrink-0 transition-colors',
-                  active
-                    ? 'text-sky-400'
-                    : 'text-muted-foreground group-hover:text-sky-400/80'
-                )}
-              />
-              <AnimatePresence>
-                {!collapsed && (
-                  <motion.span
-                    initial={{ opacity: 0, x: -6 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -6 }}
-                    className="relative"
-                  >
-                    {item.label}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </Link>
-          );
-        })}
+            </AnimatePresence>
+            {collapsed && (
+              <div className="mx-3 my-1 h-px bg-white/[0.06] first:hidden" />
+            )}
+            {section.items.map((item) => {
+              const Icon = iconMap[item.icon] ?? LayoutDashboard;
+              const active =
+                pathname === item.href || pathname.startsWith(item.href + '/');
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    'group relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
+                    active
+                      ? 'text-white'
+                      : 'text-muted-foreground hover:text-white hover:bg-white/[0.04]'
+                  )}
+                >
+                  {active && (
+                    <motion.div
+                      layoutId="sidebar-active"
+                      className="absolute inset-0 rounded-xl border border-sky-400/20 bg-gradient-to-r from-sky-500/15 to-cyan-500/5"
+                      transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                    />
+                  )}
+                  {active && (
+                    <motion.div
+                      layoutId="sidebar-indicator"
+                      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-gradient-to-b from-sky-400 to-cyan-400"
+                    />
+                  )}
+                  <Icon
+                    className={cn(
+                      'relative h-[18px] w-[18px] shrink-0 transition-colors',
+                      active
+                        ? 'text-sky-400'
+                        : 'text-muted-foreground group-hover:text-sky-400/80'
+                    )}
+                  />
+                  <AnimatePresence>
+                    {!collapsed && (
+                      <motion.span
+                        initial={{ opacity: 0, x: -6 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -6 }}
+                        className="relative"
+                      >
+                        {item.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </Link>
+              );
+            })}
+          </div>
+        ))}
       </nav>
 
       {/* System status */}

@@ -11,14 +11,34 @@ import type {
   PricingTier,
 } from './types';
 
-export const navItems = [
-  { label: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard' },
-  { label: 'AI Chat', href: '/chat', icon: 'MessageSquare' },
-  { label: 'Agents', href: '/agents', icon: 'Bot' },
-  { label: 'Memory', href: '/memory', icon: 'BrainCircuit' },
-  { label: 'Knowledge', href: '/knowledge', icon: 'BookOpen' },
-  { label: 'Analytics', href: '/analytics', icon: 'BarChart3' },
-  { label: 'Settings', href: '/settings', icon: 'Settings' },
+export const navSections = [
+  {
+    heading: 'Workspace',
+    items: [
+      { label: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard' },
+      { label: 'AI Chat', href: '/chat', icon: 'MessageSquare' },
+      { label: 'Agents', href: '/agents', icon: 'Bot' },
+    ],
+  },
+  {
+    heading: 'Backend Modules',
+    items: [
+      { label: 'Memory', href: '/memory', icon: 'BrainCircuit' },
+      { label: 'Knowledge', href: '/knowledge', icon: 'BookOpen' },
+      { label: 'Tasks', href: '/tasks', icon: 'CheckSquare' },
+      { label: 'Notes', href: '/notes', icon: 'StickyNote' },
+      { label: 'Documents', href: '/documents', icon: 'FileText' },
+      { label: 'Automation', href: '/automation', icon: 'Workflow' },
+      { label: 'Analytics', href: '/analytics', icon: 'BarChart3' },
+    ],
+  },
+  {
+    heading: 'Account',
+    items: [
+      { label: 'Profile', href: '/profile', icon: 'User' },
+      { label: 'Settings', href: '/settings', icon: 'Settings' },
+    ],
+  },
 ] as const;
 
 export const dashboardStats: StatCard[] = [

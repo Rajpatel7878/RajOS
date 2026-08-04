@@ -62,7 +62,7 @@ export function LandingNav() {
 
           <div className="hidden items-center gap-3 md:flex">
             <Link
-              href="/dashboard"
+              href="/login"
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-white"
             >
               Sign in
@@ -71,7 +71,7 @@ export function LandingNav() {
               asChild
               className="gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-cyan-400"
             >
-              <Link href="/dashboard">
+              <Link href="/login">
                 Launch RajOS
                 <ArrowRight className="h-4 w-4" />
               </Link>
@@ -111,7 +111,7 @@ export function LandingNav() {
                 asChild
                 className="mt-2 gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 text-white"
               >
-                <Link href="/dashboard">
+                <Link href="/login">
                   Launch RajOS
                   <ArrowRight className="h-4 w-4" />
                 </Link>
