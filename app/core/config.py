@@ -11,9 +11,14 @@ class Settings(BaseSettings):
 
     SECRET_KEY: str = "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET"
 
+    DEFAULT_LLM_PROVIDER: str = "local"
+    OPENAI_API_KEY: str | None = None
+    GEMINI_API_KEY: str | None = None
+
     model_config = SettingsConfigDict(
         env_file=".env",
-        case_sensitive=True
+        case_sensitive=True,
+        extra="ignore"
     )
 
 

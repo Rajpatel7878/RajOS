@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from app.database.connection import Base, engine
 from app.models.user import User
 from app.core.config import settings
@@ -14,6 +15,18 @@ app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
 )
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 from app.routes.auth import router as auth_router
 app.include_router(auth_router)
@@ -75,3 +88,7 @@ app.include_router(rag_router)
 
 from app.llm.llm_router_api import router as llm_router
 app.include_router(llm_router)
+
+from app.routers import dashboard
+app.include_router(dashboard.router)
+

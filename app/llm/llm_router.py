@@ -1,5 +1,6 @@
 from app.llm.providers.local_provider import local_llm_provider
 from app.llm.providers.openai_provider import openai_provider
+from app.llm.providers.gemini_provider import gemini_provider
 
 
 class LLMRouter:
@@ -8,9 +9,9 @@ class LLMRouter:
 
         self.providers = {
             "local": local_llm_provider,
-            "openai": openai_provider
+            "openai": openai_provider,
+            "gemini": gemini_provider,
         }
-
 
     def get_provider(
         self,

@@ -5,7 +5,7 @@ from passlib.context import CryptContext
 from app.database.connection import get_db
 from app.models.user import User
 from app.security.jwt import create_access_token
-from app.schemas.user import UserCreate, UserResponse
+from app.schemas.user import UserCreate, UserLogin, UserResponse
 
 router = APIRouter()
 
@@ -42,7 +42,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 
 @router.post("/login")
-def login(user: UserCreate, db: Session = Depends(get_db)):
+def login(user: UserLogin, db: Session = Depends(get_db)):
 
     db_user = db.query(User).filter(
         User.email == user.email

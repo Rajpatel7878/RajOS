@@ -39,12 +39,18 @@ def send_message(
     user: User = Depends(get_current_user)
 ):
 
-    conversation = (
-        db.query(Conversation)
-        .filter(Conversation.user_id == user.id)
-        .order_by(Conversation.id.desc())
-        .first()
-    )
+    conversation = None
+
+    if request.conversation_id:
+
+        conversation = (
+            db.query(Conversation)
+            .filter(
+                Conversation.id == request.conversation_id,
+                Conversation.user_id == user.id
+            )
+            .first()
+        )
 
     if conversation is None:
 

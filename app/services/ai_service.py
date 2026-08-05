@@ -1,6 +1,7 @@
 from app.memory.memory_engine import MemoryEngine
 from app.agents.agent import Agent
-
+from app.llm.llm_service import llm_service
+from app.llm.llm_config import llm_config
 
 memory_engine = MemoryEngine()
 
@@ -8,86 +9,39 @@ memory_engine = MemoryEngine()
 def ai_response(message: str, user=None, context=None):
 
     agent = Agent()
-
-    user_preferences = {}
-
-    if context:
-        user_preferences = context.get("preferences", {})
-
+    agent_result = agent.run(message, user, context)
 
     memories = memory_engine.get_relevant_memories(message)
 
-    agent_result = agent.run(message, user, context)
+    prompt = f"""
+You are RajOS AI, a highly intelligent personal AI assistant.
 
-    response_style = user_preferences.get("response_style")
+User Message:
+{message}
 
-    response = "I understood your request."
+Conversation Context:
+{context}
 
-    tool_result = agent_result.get("tool_result")
+Relevant Memories:
+{memories}
 
-    if tool_result and tool_result.get("status") == "success":
+Instructions:
+- Answer naturally like ChatGPT.
+- Use memories only if relevant.
+- Do not always mention memories.
+- Be conversational, helpful and accurate.
+"""
 
-        result = tool_result.get("result", {})
-        tool = result.get("tool")
+    provider = getattr(llm_config, "DEFAULT_PROVIDER", "gemini")
 
-        if tool == "productivity":
-
-            analysis = result.get("analysis", {})
-            score = result.get("score", {})
-
-            response = (
-                f"📊 Productivity Report\n\n"
-                f"Completed Tasks: {analysis.get('completed_tasks',0)}/{analysis.get('total_tasks',0)}\n"
-                f"Pending Tasks: {analysis.get('pending_tasks',0)}\n"
-                f"Productivity Score: {score.get('score',0)}%\n"
-                f"Level: {score.get('level','unknown')}"
-            )
-
-        elif tool == "notes":
-
-            if "notes" in result:
-                response = f"📝 I found {result.get('count',0)} notes."
-            else:
-                response = (
-                    f"✅ Your note has been saved.\n\n"
-                    f"Title: {result.get('title')}\n"
-                    f"Content: {result.get('content')}"
-                )
-
-        elif tool == "documents":
-
-            if "documents" in result:
-                response = f"📄 I found {result.get('count',0)} documents."
-            else:
-                response = (
-                    f"📄 Document '{result.get('filename')}' has been stored successfully."
-                )
-
-        elif tool == "tasks":
-            response = "✅ Task completed successfully."
-
-        elif tool == "memory":
-            response = "🧠 Memory updated successfully."
-
-    elif memories:
-
-        best = memories[0]
-
-        value = str(best.get("value", ""))
-
-        response = (
-            f"Based on what I remember:\n\n{value}"
-        )
-
-    if response_style == "short":
-        response = response[:200]
-
-    elif response_style == "detailed":
-        response = response + "\n\nI can provide more details if needed."
+    llm = llm_service.generate(
+        prompt=prompt,
+        provider=provider
+    )
 
     return {
         "message": message,
         "memory_context": memories[:3],
         "agent": agent_result,
-        "response": response
+        "response": llm.get("response", "No response generated.")
     }
