@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { login, register } from '@/services/api/auth';
+import { getSupabase } from '@/lib/supabase-client';
 
 type Mode = 'signin' | 'signup';
 
@@ -18,7 +18,6 @@ export const dynamic = 'force-dynamic';
 export default function LoginPage() {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>('signin');
-  const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -27,9 +26,21 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   useEffect(() => {
-    if (sessionStorage.getItem('rajos_guest') === '1') {
-      router.push('/dashboard');
-    }
+    let cancelled = false;
+    (async () => {
+      if (sessionStorage.getItem('rajos_guest') === '1') {
+        if (!cancelled) router.push('/dashboard');
+        return;
+      }
+      try {
+        const supabase = getSupabase();
+        const { data } = await supabase.auth.getSession();
+        if (!cancelled && data.session) router.push('/dashboard');
+      } catch {
+        /* auth unreachable — guest mode available below */
+      }
+    })();
+    return () => { cancelled = true; };
   }, [router]);
 
   const handleGuest = useCallback(() => {
@@ -44,35 +55,36 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const supabase = getSupabase();
+
       if (mode === 'signup') {
-        await register(username, email, password);
-        setSuccess('Account created! Please sign in.');
-        setMode('signin');
-        setPassword('');
+        const { error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        setSuccess('Account created! Redirecting to your dashboard...');
+        setTimeout(() => router.push('/dashboard'), 1200);
       } else {
-        await login(email, password);
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
         setSuccess('Welcome back! Redirecting...');
         setTimeout(() => router.push('/dashboard'), 800);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Something went wrong';
-
-      if (message === 'User not found') {
-        setError('No account found with this email. Please sign up first.');
-      } else if (message === 'Wrong password') {
-        setError('Incorrect password. Please try again.');
-      } else if (message.includes('Email already registered')) {
+      if (message.includes('Failed to fetch') || message.includes('fetch')) {
+        setError('Cannot reach the authentication server right now. You can continue as a guest to explore the app.');
+      } else if (message.includes('Invalid login')) {
+        setError('Incorrect email or password. Please try again.');
+      } else if (message.includes('already registered') || message.includes('already been registered')) {
         setError('An account with this email already exists. Try signing in instead.');
-      } else if (message.includes('fetch') || message.includes('Failed to fetch')) {
-        setError('Cannot reach the RajOS backend. Make sure the backend is running on port 8000.');
+      } else if (message.includes('Password should be at least')) {
+        setError('Password must be at least 6 characters long.');
       } else {
         setError(message);
       }
     } finally {
       setLoading(false);
     }
-  }, [mode, username, email, password, router]);
-
+  }, [mode, email, password, router]);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-12">
@@ -192,27 +204,6 @@ export default function LoginPage() {
                 </motion.div>
               )}
             </AnimatePresence>
-
-            {mode === 'signup' && (
-              <div className="space-y-2">
-                <Label htmlFor="username" className="text-sm font-medium text-muted-foreground">
-                  Username
-                </Label>
-                <div className="relative">
-                  <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="Enter your username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    autoComplete="username"
-                    className="h-11 border-white/[0.08] bg-white/[0.03] pl-11 text-white placeholder:text-muted-foreground/60 focus:border-sky-400/50 focus:ring-sky-400/20"
-                  />
-                </div>
-              </div>
-            )}
 
             <div className="space-y-2">
               <Label htmlFor="email" className="text-sm font-medium text-muted-foreground">

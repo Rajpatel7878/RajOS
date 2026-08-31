@@ -6,7 +6,6 @@ import { Sidebar, useSidebarState } from '@/components/sidebar';
 import { Topbar } from '@/components/topbar';
 import { PageTransition } from '@/components/page-transition';
 import { GradientMesh } from '@/components/gradient-mesh';
-import { getSupabase } from '@/lib/supabase-client';
 import { Loader2 } from 'lucide-react';
 
 const GUEST_FLAG = 'rajos_guest';
@@ -25,10 +24,9 @@ export function AppShell({ children }: { children: ReactNode }) {
         return;
       }
       try {
-        const supabase = getSupabase();
-        const { data } = await supabase.auth.getSession();
+        const token = localStorage.getItem('token');
         if (cancelled) return;
-        if (data.session) {
+        if (token) {
           setAuthed(true);
         } else {
           router.replace('/login');

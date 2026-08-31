@@ -1,0 +1,47 @@
+diff --git a/backend b/backend
+index 11571a0..b86f5df 160000
+--- a/backend
++++ b/backend
+@@ -1 +1 @@
+-Subproject commit 11571a07c95775b40aa21cf87e618a5466cdcf8a
++Subproject commit b86f5df31d729473b263a211007a13be52db8638
+diff --git a/frontend/app/chat/page.tsx b/frontend/app/chat/page.tsx
+index 12bab37..1e9dad6 100644
+--- a/frontend/app/chat/page.tsx
++++ b/frontend/app/chat/page.tsx
+@@ -27,6 +27,8 @@ import { Button } from '@/components/ui/button';
+ import { cn } from '@/lib/utils';
+ import { conversations, llmModels, agents } from '@/lib/data';
+ import type { ChatMessage } from '@/lib/types';
++import { sendMessage } from "@/services/api/chat";
++import { getHistory } from "@/services/api/history";
+ 
+ const suggestionPrompts = [
+   { icon: 'Zap', text: 'Automate my weekly report' },
+@@ -51,10 +53,26 @@ export default function ChatPage() {
+   const [messages, setMessages] = useState<ChatMessage[]>(conversations[0].messages);
+   const [isTyping, setIsTyping] = useState(false);
+   const [activeConv, setActiveConv] = useState(conversations[0].id);
++  const [conversationId, setConversationId] = useState<number | null>(null);
++  const [history, setHistory] = useState<any[]>([]);
++  const [searchTerm, setSearchTerm] = useState("");
+   const messagesEndRef = useRef<HTMLDivElement>(null);
+ 
+   useEffect(() => {
+     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
++
++  useEffect(() => {
++    async function loadHistory() {
++      try {
++        const data = await getHistory();
++        setHistory(data);
++      } catch (err) {
++        console.error(err);
++      }
++    }
++
++    loadHistory();
++  }, []);
+   }, [messages, isTyping]);
+ 
+   const handleSend = () => {

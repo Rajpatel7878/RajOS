@@ -1,8 +1,9 @@
-import API from "./client";
+﻿import API from "./client";
 
 export async function sendMessage(
   message: string,
-  conversationId: number | null = null
+  conversationId: number | null = null,
+  agentId: string | null = null
 ) {
   const token = localStorage.getItem("token");
 
@@ -15,6 +16,7 @@ export async function sendMessage(
     body: JSON.stringify({
       message,
       conversation_id: conversationId,
+      agent_id: agentId,
     }),
   });
 
@@ -25,4 +27,26 @@ export async function sendMessage(
   }
 
   return data;
+}
+
+export async function searchConversations(query: string) {
+  const token = localStorage.getItem("token");
+
+  const res = await fetch(`${API}/chat/history`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (!res.ok) throw new Error("Failed to load conversations");
+
+  const data = await res.json();
+
+  if (!query.trim()) return data;
+
+  return data.filter(
+    (conv: { title: string; messages: { content: string }[] }) =>
+      conv.title?.toLowerCase().includes(query.toLowerCase()) ||
+      conv.messages?.some((m) =>
+        m.content?.toLowerCase().includes(query.toLowerCase())
+      )
+  );
 }

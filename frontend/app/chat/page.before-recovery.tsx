@@ -54,146 +54,66 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [activeConv, setActiveConv] = useState(conversations[0].id);
   const [conversationId, setConversationId] = useState<number | null>(null);
-  const [history, setHistory] = useState<
-    {
-      conversation_id: number;
-      title: string;
-      messages: { role: 'user' | 'assistant'; content: string }[];
-    }[]
-  >([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
-
-  const loadHistory = async () => {
-    try {
-      const data = await getHistory();
-      setHistory(data);
-      return data;
-    } catch (err) {
-      console.error('Failed to load chat history:', err);
-      return [];
-    }
-  };
 
   useEffect(() => {
+    async function loadHistory() {
+      try {
+        const data = await getHistory();
+        setHistory(data);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
     loadHistory();
   }, []);
+  }, [messages, isTyping]);
 
-  const handleNewConversation = () => {
-    setConversationId(null);
-    setMessages([]);
-    setActiveConv(0);
-    setInput('');
-    setIsTyping(false);
-  };
-
-  const handleSelectConversation = (id: number) => {
-    const conversation = history.find(
-      (item) => item.conversation_id === id
-    );
-
-    if (!conversation) return;
-
-    setConversationId(id);
-    setActiveConv(id);
-
-    const restoredMessages: ChatMessage[] = conversation.messages.map(
-      (msg, index) => ({
-        id: `history-${id}-${index}`,
-        role: msg.role,
-        content: msg.content,
-        timestamp: '',
-      })
-    );
-
-    setMessages(restoredMessages);
-    setInput('');
-  };
-
-  const handleSend = async () => {
-    const message = input.trim();
-    if (!message || isTyping) return;
-
+  const handleSend = () => {
+    if (!input.trim()) return;
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
       role: 'user',
-      content: message,
-      timestamp: new Date().toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-      }),
+      content: input,
+      timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
     };
-
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
 
-    try {
-      // Pass selected agent ID to backend
-      const data = await sendMessage(message, conversationId, selectedAgent.id);
-
-      // Use the agent name that actually responded (from backend routing)
-      const respondingAgentName = data.agent_name ?? selectedAgent.name;
-
+    setTimeout(() => {
       const aiMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',
-        content: data.response ?? data.message ?? data.content ?? 'No response received from AI.',
-        timestamp: new Date().toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-        }),
-        model: data.model ?? selectedModel.name,
-        agent: respondingAgentName,
-        sources: data.sources ?? [],
-        memoryUsed: data.memory_used ?? [],
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
-
-      if (data.conversation_id) {
-        setConversationId(data.conversation_id);
-      }
-
-      // Refresh history after new message
-      loadHistory();
-    } catch (error) {
-      console.error('Chat error:', error);
-
-      const errorMsg: ChatMessage = {
-        id: `msg-${Date.now() + 1}`,
-        role: 'assistant',
         content:
-          error instanceof Error
-            ? `Sorry, I couldn't process your request: ${error.message}`
-            : 'Sorry, I could not connect to the AI backend.',
-        timestamp: new Date().toLocaleTimeString('en-US', {
-          hour: 'numeric',
-          minute: '2-digit',
-        }),
+          "I've analyzed your request and cross-referenced it with your memory and knowledge base. Here's my assessment: based on your stored preference for concise, code-first answers and your active project goals, I recommend a modular approach. Let me break this down into actionable steps that align with your current roadmap.",
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+        model: selectedModel.name,
+        agent: selectedAgent.name,
+        sources: [
+          { title: 'Project Aurora — Architecture', snippet: 'Modular monolith with bounded contexts...' },
+        ],
+        memoryUsed: ['Project Aurora — North Star Metric', 'Prefers concise, code-first answers'],
       };
-
-      setMessages((prev) => [...prev, errorMsg]);
-    } finally {
+      setMessages((prev) => [...prev, aiMsg]);
       setIsTyping(false);
-    }
+    }, 1800);
   };
 
   return (
     <AppShell>
-      <div className="flex h-full min-h-0 gap-6">
+      <div className="flex gap-6 h-[calc(100vh-8rem)]">
         {/* Conversation history sidebar */}
         <div className="hidden w-72 shrink-0 flex-col lg:flex">
           <GlassCard hover={false} className="flex h-full flex-col p-0">
             <div className="p-4 border-b border-white/[0.06]">
-              <Button
-                onClick={handleNewConversation}
-                className="w-full gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 text-white hover:from-sky-400 hover:to-cyan-400"
-              >
+              <Button className="w-full gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 text-white hover:from-sky-400 hover:to-cyan-400">
                 <Plus className="h-4 w-4" />
                 New Conversation
               </Button>
@@ -202,8 +122,6 @@ export default function ChatPage() {
               <div className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.02] px-3 py-2">
                 <Search className="h-4 w-4 text-muted-foreground" />
                 <input
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Search chats..."
                   className="w-full bg-transparent text-sm text-white placeholder:text-muted-foreground focus:outline-none"
                 />
@@ -213,59 +131,35 @@ export default function ChatPage() {
               <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                 Recent
               </p>
-              {history
-                .filter((conv) =>
-                  conv.title.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((conv) => {
-                  const lastMessage =
-                    conv.messages[conv.messages.length - 1]?.content ??
-                    'No messages yet';
-
-                  return (
-                    <button
-                      key={conv.conversation_id}
-                      onClick={() => handleSelectConversation(conv.conversation_id)}
-                      className={cn(
-                        'group flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-colors',
-                        activeConv === conv.conversation_id
-                          ? 'border border-sky-400/20 bg-sky-400/5'
-                          : 'hover:bg-white/[0.03]'
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <MessageSquare
-                          className={cn(
-                            'h-3.5 w-3.5 shrink-0',
-                            activeConv === conv.conversation_id
-                              ? 'text-sky-400'
-                              : 'text-muted-foreground'
-                          )}
-                        />
-                        <span className="truncate text-sm font-medium text-white">
-                          {conv.title}
-                        </span>
-                      </div>
-
-                      <span className="truncate pl-5 text-xs text-muted-foreground">
-                        {lastMessage}
-                      </span>
-
-                      <div className="flex items-center gap-2 pl-5">
-                        <span className="text-[10px] text-muted-foreground">
-                          Conversation #{conv.conversation_id}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
+              {conversations.map((conv) => (
+                <button
+                  key={conv.id}
+                  onClick={() => setActiveConv(conv.id)}
+                  className={cn(
+                    'group flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-colors',
+                    activeConv === conv.id
+                      ? 'border border-sky-400/20 bg-sky-400/5'
+                      : 'hover:bg-white/[0.03]'
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <MessageSquare className={cn('h-3.5 w-3.5 shrink-0', activeConv === conv.id ? 'text-sky-400' : 'text-muted-foreground')} />
+                    <span className="truncate text-sm font-medium text-white">{conv.title}</span>
+                  </div>
+                  <span className="truncate pl-5 text-xs text-muted-foreground">{conv.lastMessage}</span>
+                  <div className="flex items-center gap-2 pl-5">
+                    <span className="text-[10px] text-muted-foreground">{conv.timestamp}</span>
+                    <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-muted-foreground">{conv.agent}</span>
+                  </div>
+                </button>
+              ))}
             </div>
           </GlassCard>
         </div>
 
         {/* Chat area */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <GlassCard hover={false} className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+        <div className="flex min-w-0 flex-1 flex-col">
+          <GlassCard hover={false} className="flex flex-1 flex-col overflow-hidden p-0">
             {/* Chat header — model + agent selectors */}
             <div className="flex items-center gap-3 border-b border-white/[0.06] p-4">
               {/* Model selector */}
@@ -371,7 +265,7 @@ export default function ChatPage() {
             </div>
 
             {/* Messages */}
-            <div className="min-h-0 flex-1 overflow-y-auto p-6 no-scrollbar">
+            <div className="flex-1 overflow-y-auto p-6 no-scrollbar">
               {messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
                   <div className="relative mb-6">
@@ -410,7 +304,7 @@ export default function ChatPage() {
             </div>
 
             {/* Input */}
-            <div className="shrink-0 border-t border-white/[0.06] bg-background/40 p-4">
+            <div className="border-t border-white/[0.06] p-4">
               <div className="mx-auto max-w-3xl">
                 {/* Memory context display */}
                 {messages.length > 0 && (
@@ -510,7 +404,7 @@ function MessageBubble({ message, agentName }: { message: ChatMessage; agentName
       <div className="max-w-[85%] flex-1">
         <div className="rounded-2xl rounded-tl-sm border border-white/[0.06] bg-white/[0.02] px-4 py-3">
           <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="font-medium text-cyan-400">{message.agent ?? agentName}</span>
+            <span className="font-medium text-cyan-400">{agentName}</span>
             {message.model && <span>· {message.model}</span>}
           </div>
           <p className="text-sm leading-relaxed text-white/90">{message.content}</p>
