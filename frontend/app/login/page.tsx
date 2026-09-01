@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, User, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Sparkles, Mail, Lock, ArrowRight, Loader2, Eye, EyeOff, User, CheckCircle2, AlertCircle, Smartphone, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,6 +26,13 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  // Phone OTP state
+  const [phoneMode, setPhoneMode] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
+  const [otpSent, setOtpSent] = useState(false);
+  const [phoneLoading, setPhoneLoading] = useState(false);
 
   useEffect(() => {
     if (sessionStorage.getItem('rajos_guest') === '1') {
@@ -91,6 +98,60 @@ export default function LoginPage() {
       setGoogleLoading(false);
     }
   }, []);
+
+  const handleSendOTP = useCallback(async () => {
+    setError(null);
+    setPhoneLoading(true);
+    try {
+      const supabase = (await import('@/lib/supabase-client')).getSupabase();
+      const formatted = phone.startsWith('+') ? phone : `+91${phone}`;
+      const { error: otpError } = await supabase.auth.signInWithOtp({ phone: formatted });
+      if (otpError) throw otpError;
+      setOtpSent(true);
+      setSuccess(`OTP sent to ${formatted}`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to send OTP';
+      setError(msg.includes('Phone') || msg.includes('provider') 
+        ? 'Phone auth not enabled. Enable SMS in Supabase dashboard.' 
+        : msg);
+    } finally {
+      setPhoneLoading(false);
+    }
+  }, [phone]);
+
+  const handleVerifyOTP = useCallback(async () => {
+    setError(null);
+    setPhoneLoading(true);
+    try {
+      const supabase = (await import('@/lib/supabase-client')).getSupabase();
+      const formatted = phone.startsWith('+') ? phone : `+91${phone}`;
+      const { data, error: verifyError } = await supabase.auth.verifyOtp({
+        phone: formatted,
+        token: otp,
+        type: 'sms',
+      });
+      if (verifyError) throw verifyError;
+      const userId = data.user?.id || '';
+      // Sync with RajOS backend
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://127.0.0.1:8000';
+      const res = await fetch(`${apiUrl}/auth/phone/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: formatted, supabase_user_id: userId, name: '' }),
+      });
+      if (res.ok) {
+        const d = await res.json();
+        localStorage.setItem('token', d.access_token);
+        localStorage.setItem('access_token', d.access_token);
+      }
+      setSuccess('Verified! Redirecting...');
+      setTimeout(() => router.push('/dashboard'), 800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'OTP verification failed');
+    } finally {
+      setPhoneLoading(false);
+    }
+  }, [phone, otp, router]);
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-6 py-12">
@@ -315,26 +376,113 @@ export default function LoginPage() {
           </div>
 
           {/* Social buttons */}
-          <div className="space-y-3">
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={googleLoading || loading}
-              className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm font-medium text-white transition-colors hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {googleLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
+          {!phoneMode ? (
+            <div className="space-y-3">
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading || loading}
+                className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm font-medium text-white transition-colors hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {googleLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
+                ) : (
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                  </svg>
+                )}
+                {googleLoading ? 'Connecting to Google...' : 'Continue with Google'}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setPhoneMode(true); setError(null); setSuccess(null); }}
+                className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm font-medium text-white transition-colors hover:bg-white/[0.06]"
+              >
+                <Smartphone className="h-4 w-4 text-emerald-400" />
+                Continue with Phone (OTP)
+              </button>
+            </div>
+          ) : (
+            /* Phone OTP panel */
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 text-sm text-white">
+                <Smartphone className="h-4 w-4 text-emerald-400" />
+                <span className="font-medium">Phone Sign-In</span>
+                <button
+                  onClick={() => { setPhoneMode(false); setOtpSent(false); setPhone(''); setOtp(''); setError(null); setSuccess(null); }}
+                  className="ml-auto text-xs text-muted-foreground hover:text-white"
+                >
+                  ← Back
+                </button>
+              </div>
+
+              {!otpSent ? (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Phone Number</Label>
+                    <div className="relative flex gap-2">
+                      <span className="flex h-11 items-center rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-muted-foreground">
+                        +91
+                      </span>
+                      <Input
+                        type="tel"
+                        placeholder="9876543210"
+                        value={phone}
+                        onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
+                        maxLength={10}
+                        className="h-11 flex-1 border-white/[0.08] bg-white/[0.03] text-white placeholder:text-muted-foreground/60 focus:border-sky-400/50"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">OTP will be encrypted and sent via SMS</p>
+                  </div>
+                  <Button
+                    onClick={handleSendOTP}
+                    disabled={phoneLoading || phone.length < 10}
+                    className="h-11 w-full gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-semibold text-white hover:from-emerald-400 hover:to-teal-400 disabled:opacity-60"
+                  >
+                    {phoneLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending...</> : <><Smartphone className="h-4 w-4" /> Send OTP</>}
+                  </Button>
+                </>
               ) : (
-                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                </svg>
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium text-muted-foreground">Enter 6-digit OTP</Label>
+                    <div className="relative">
+                      <KeyRound className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        placeholder="123456"
+                        value={otp}
+                        onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                        maxLength={6}
+                        className="h-11 border-white/[0.08] bg-white/[0.03] pl-11 text-center text-lg font-bold tracking-[0.5em] text-white placeholder:text-muted-foreground/40 focus:border-emerald-400/50"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Sent to +91{phone} ·{' '}
+                      <button
+                        onClick={() => setOtpSent(false)}
+                        className="text-sky-400 hover:underline"
+                      >
+                        Change number
+                      </button>
+                    </p>
+                  </div>
+                  <Button
+                    onClick={handleVerifyOTP}
+                    disabled={phoneLoading || otp.length < 6}
+                    className="h-11 w-full gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-semibold text-white hover:from-emerald-400 hover:to-teal-400 disabled:opacity-60"
+                  >
+                    {phoneLoading ? <><Loader2 className="h-4 w-4 animate-spin" /> Verifying...</> : <><CheckCircle2 className="h-4 w-4" /> Verify & Sign In</>}
+                  </Button>
+                </>
               )}
-              {googleLoading ? 'Connecting to Google...' : 'Continue with Google'}
-            </button>
-          </div>
+            </div>
+          )}
 
           {/* Guest mode */}
           <div className="mt-5 flex items-center gap-3">
