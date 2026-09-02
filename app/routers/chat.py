@@ -16,6 +16,7 @@ from app.services.preference_query import PreferenceQuery
 from app.services.context_builder import ContextBuilder
 from app.conversation.conversation_manager import ConversationManager
 from app.memory.memory_engine import MemoryEngine
+from app.agents.agent_router import AgentRouter, get_agent_instance
 
 
 router = APIRouter(
@@ -30,6 +31,10 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# Initialise the router once at module level
+_agent_router = AgentRouter()
 
 
 @router.post("/message")
@@ -140,31 +145,40 @@ def send_message(
             request.message
         )
 
+    # --- Agent routing ---
+    selected_agent_id = _agent_router.route(
+        request.message,
+        requested_agent=request.agent_id
+    )
+
     if profile_name:
-
-        ai_reply = {
-            "response": f"Your name is {profile_name}.",
-            "memory": [],
-            "conversation_context": conversation_data,
-            "agent": {}
-        }
-
+        response_text = f"Your name is {profile_name}."
+        agent_info = {"agent_id": "echo", "agent_name": "Echo"}
     else:
-
-        ai_reply = ai_response(
-            request.message,
-            user,
-            full_context
-        )
-
-    ai_reply["memory"] = memory_data
-
-    ai_reply["conversation_context"] = conversation_data
+        try:
+            agent = get_agent_instance(selected_agent_id)
+            agent_context = {
+                "conversation_history": history_text,
+                "memories": memory_data,
+                "full_context": full_context,
+            }
+            agent_result = agent.run(request.message, context=agent_context)
+            response_text = agent_result.get("response", "")
+            agent_info = {
+                "agent_id": agent_result.get("agent_id", selected_agent_id),
+                "agent_name": agent_result.get("agent_name", selected_agent_id.capitalize()),
+                "steps": agent_result.get("steps", []),
+            }
+        except Exception:
+            # Fallback to generic AI response if agent fails
+            ai_reply = ai_response(request.message, user, full_context)
+            response_text = ai_reply.get("response", "No response generated.")
+            agent_info = {"agent_id": "atlas", "agent_name": "Atlas"}
 
 
     assistant_message = Message(
         role="assistant",
-        content=ai_reply["response"],
+        content=response_text,
         conversation_id=conversation.id
     )
 
@@ -175,10 +189,12 @@ def send_message(
 
     return {
         "conversation_id": conversation.id,
-        "response": ai_reply["response"],
-        "memory": ai_reply["memory"],
-        "conversation_context": ai_reply["conversation_context"],
-        "agent": ai_reply["agent"]
+        "response": response_text,
+        "memory": memory_data,
+        "conversation_context": conversation_data,
+        "agent": agent_info,
+        "agent_id": agent_info.get("agent_id", selected_agent_id),
+        "agent_name": agent_info.get("agent_name", selected_agent_id.capitalize()),
     }
 
 

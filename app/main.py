@@ -92,3 +92,15 @@ app.include_router(llm_router)
 from app.routers import dashboard
 app.include_router(dashboard.router)
 
+from app.routers import agents as agents_router
+app.include_router(agents_router.router)
+
+from app.routes.google_auth import router as google_auth_router
+app.include_router(google_auth_router)
+
+from app.routes.phone_auth import router as phone_auth_router
+app.include_router(phone_auth_router)
+
+from app.routers.notifications import router as notifications_router
+from app.models.push_subscription import PushSubscription  # ensure table created
+app.include_router(notifications_router)
