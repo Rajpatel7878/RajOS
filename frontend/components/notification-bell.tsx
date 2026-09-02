@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -144,7 +144,7 @@ export function NotificationBell() {
                 </div>
               )}
 
-              {summary?.due_today > 0 && (
+              {summary && summary.due_today > 0 && (
                 <div className="rounded-xl border border-amber-400/20 bg-amber-400/[0.08] px-3 py-2 text-xs text-amber-300">
                   ⏰ {summary.due_today} task{summary.due_today > 1 ? "s" : ""} due today
                 </div>

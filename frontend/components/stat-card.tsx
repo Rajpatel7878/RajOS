@@ -7,7 +7,7 @@ import { AnimatedCounter } from '@/components/animated-counter';
 import type { StatCard as StatCardType } from '@/lib/types';
 
 export function StatCard({ stat, delay = 0 }: { stat: StatCardType; delay?: number }) {
-  const Icon = (Icons as Record<string, Icons.LucideIcon>)[stat.icon] ?? Icons.Activity;
+  const Icon = (Icons as unknown as Record<string, Icons.LucideIcon>)[stat.icon] ?? Icons.Activity;
   const numericValue = parseFloat(stat.value.replace(/[^0-9.]/g, ''));
   const hasDecimal = stat.value.includes('.');
   const prefix = stat.value.match(/^[^0-9]*/)?.[0] ?? '';

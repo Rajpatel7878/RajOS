@@ -52,7 +52,7 @@ export default function ChatPage() {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>(conversations[0].messages);
   const [isTyping, setIsTyping] = useState(false);
-  const [activeConv, setActiveConv] = useState(conversations[0].id);
+  const [activeConv, setActiveConv] = useState<string | number>(conversations[0].id);
   const [conversationId, setConversationId] = useState<number | null>(null);
   const [history, setHistory] = useState<
     {

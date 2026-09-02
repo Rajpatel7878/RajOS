@@ -10,12 +10,16 @@ export interface Task {
   description?: string;
   completed: boolean;
   completed_at?: string;
+  priority?: string;
+  due_date?: string;
   user_id: number;
 }
 
 export interface TaskCreate {
   title: string;
   description?: string;
+  priority?: string;
+  due_date?: string;
 }
 
 export async function getTasks(): Promise<Task[]> {
