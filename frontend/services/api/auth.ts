@@ -1,4 +1,4 @@
-﻿import API from "./client";
+import API from "./client";
 import { getSupabase } from "@/lib/supabase-client";
 
 export async function login(email: string, password: string) {
@@ -91,4 +91,34 @@ export function getToken(): string | null {
 
 export function isLoggedIn(): boolean {
   return !!getToken();
+}
+
+export async function sendPhoneOTP(phone: string) {
+  const response = await fetch(`${API}/auth/phone/send-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || "Failed to send verification code");
+  }
+  return data;
+}
+
+export async function verifyPhoneOTP(phone: string, otp: string) {
+  const response = await fetch(`${API}/auth/phone/verify-otp`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, otp }),
+  });
+  const data = await response.json();
+  if (!response.ok) {
+    throw new Error(data.detail || "Verification failed");
+  }
+  if (data.access_token) {
+    localStorage.setItem("token", data.access_token);
+    localStorage.setItem("access_token", data.access_token);
+  }
+  return data;
 }
