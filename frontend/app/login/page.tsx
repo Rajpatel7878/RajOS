@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
@@ -114,13 +114,17 @@ export default function LoginPage() {
     setSuccess(null);
     setGoogleLoading(true);
     try {
-      await googleLogin();
+      const res = await googleLogin();
+      if (res && res.access_token) {
+        setSuccess(res.message || "Signed in with Google! Redirecting to dashboard...");
+        setTimeout(() => router.push("/dashboard"), 700);
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Google sign-in failed";
       setError(message);
       setGoogleLoading(false);
     }
-  }, []);
+  }, [router]);
 
   // Phone: Send OTP
   const handleSendOTP = useCallback(async () => {
