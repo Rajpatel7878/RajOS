@@ -1,6 +1,6 @@
-'use client';
+﻿"use client";
 
-import { motion } from 'framer-motion';
+import { motion } from "framer-motion";
 import {
   AreaChart,
   Area,
@@ -16,7 +16,7 @@ import {
   RadialBarChart,
   RadialBar,
   PolarAngleAxis,
-} from 'recharts';
+} from "recharts";
 import {
   TrendingUp,
   TrendingDown,
@@ -28,11 +28,16 @@ import {
   Target,
   Award,
   Cpu,
-} from 'lucide-react';
-import { AppShell } from '@/components/app-shell';
-import { GlassCard } from '@/components/glass-card';
-import { AnimatedCounter } from '@/components/animated-counter';
-import { cn } from '@/lib/utils';
+  Sparkles,
+  Layers,
+  ArrowUpRight,
+  ShieldCheck,
+  Radio,
+} from "lucide-react";
+import { AppShell } from "@/components/app-shell";
+import { GlassCard } from "@/components/glass-card";
+import { AnimatedCounter } from "@/components/animated-counter";
+import { cn } from "@/lib/utils";
 import {
   usageChart,
   memoryGrowthChart,
@@ -40,252 +45,234 @@ import {
   productivityChart,
   interactionHistory,
   llmDistribution,
-} from '@/lib/data';
+} from "@/lib/data";
 
 const summaryStats = [
-  { label: 'Total Interactions', value: 94521, suffix: '', change: '+31.5%', trend: 'up', icon: Activity, color: 'text-sky-400' },
-  { label: 'Memory Items', value: 8206, suffix: '', change: '+12.4%', trend: 'up', icon: BrainCircuit, color: 'text-cyan-400' },
-  { label: 'Knowledge Docs', value: 2318, suffix: '', change: '+8.1%', trend: 'up', icon: Database, color: 'text-emerald-400' },
-  { label: 'Tasks Automated', value: 5885, suffix: '', change: '+24.6%', trend: 'up', icon: Zap, color: 'text-amber-400' },
+  { label: "Total Interactions", value: 94521, suffix: "", change: "+31.5%", trend: "up", icon: Activity, color: "text-sky-400", gradient: "sky" },
+  { label: "Memory Items", value: 8206, suffix: "", change: "+12.4%", trend: "up", icon: BrainCircuit, color: "text-cyan-400", gradient: "cyan" },
+  { label: "Knowledge Docs", value: 2318, suffix: "", change: "+8.1%", trend: "up", icon: Database, color: "text-emerald-400", gradient: "emerald" },
+  { label: "Tasks Automated", value: 5885, suffix: "", change: "+24.6%", trend: "up", icon: Zap, color: "text-amber-400", gradient: "amber" },
 ];
 
 const topMetrics = [
-  { label: 'Productivity Score', value: 94.2, suffix: '/100', icon: Award, color: 'text-sky-400', pct: 94 },
-  { label: 'Task Accuracy', value: 97.4, suffix: '%', icon: Target, color: 'text-emerald-400', pct: 97 },
-  { label: 'Avg Response Time', value: 1.2, suffix: 's', icon: Clock, color: 'text-cyan-400', pct: 88 },
-  { label: 'LLM Efficiency', value: 89.6, suffix: '%', icon: Cpu, color: 'text-violet-400', pct: 90 },
+  { label: "Productivity Score", value: 94.2, suffix: "/100", icon: Award, color: "text-sky-400", pct: 94 },
+  { label: "Task Accuracy", value: 97.4, suffix: "%", icon: Target, color: "text-emerald-400", pct: 97 },
+  { label: "Avg Response Time", value: 1.2, suffix: "s", icon: Clock, color: "text-cyan-400", pct: 88 },
+  { label: "LLM Efficiency", value: 89.6, suffix: "%", icon: Cpu, color: "text-violet-400", pct: 90 },
 ];
 
 export default function AnalyticsPage() {
   return (
     <AppShell>
-      {/* Summary stats */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {summaryStats.map((stat, i) => (
-          <GlassCard key={stat.label} delay={i * 0.06} className="p-5">
-            <div className="flex items-center justify-between">
-              <div className={cn('flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.02]', stat.color)}>
-                <stat.icon className="h-5 w-5" />
-              </div>
-              <span className={cn(
-                'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold',
-                stat.trend === 'up' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'
-              )}>
-                {stat.trend === 'up' ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                {stat.change}
-              </span>
+      {/* ── 3D Hero Analytics Banner ── */}
+      <div className="relative mb-8 overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-black/80 via-black/50 to-sky-950/25 p-6 sm:p-8 backdrop-blur-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.8)]">
+        <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-sky-500/15 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 -bottom-20 h-64 w-64 rounded-full bg-cyan-500/10 blur-3xl" />
+        <div className="pointer-events-none absolute inset-0 scanlines opacity-30" />
+
+        <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div>
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border border-sky-400/30 bg-sky-400/10 px-3.5 py-1 text-xs font-semibold text-sky-300">
+              <Sparkles className="h-3.5 w-3.5" />
+              Spatial Intelligence & System Telemetry
             </div>
-            <p className="mt-4 text-2xl font-bold text-white">
-              <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+            <h1 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+              System <span className="text-gradient-cyan">Analytics & Intelligence</span>
+            </h1>
+            <p className="mt-2 text-sm text-muted-foreground max-w-xl leading-relaxed">
+              Real-time computational throughput, memory index velocity, and multi-agent execution analytics across the entire RajOS cluster.
             </p>
-            <p className="text-sm text-muted-foreground">{stat.label}</p>
-          </GlassCard>
-        ))}
-      </div>
+          </div>
 
-      {/* Top metrics with radial */}
-      <div className="mb-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {topMetrics.map((m, i) => (
-          <GlassCard key={m.label} delay={i * 0.06} className="flex items-center gap-4 p-5">
-            <div className="relative h-16 w-16 shrink-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <RadialBarChart
-                  innerRadius="70%"
-                  outerRadius="100%"
-                  data={[{ value: m.pct }]}
-                  startAngle={90}
-                  endAngle={-270}
-                >
-                  <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
-                  <RadialBar
-                    dataKey="value"
-                    cornerRadius={8}
-                    fill={`hsl(${199 - i * 10} 89% 56%)`}
-                    background={{ fill: 'hsl(222 18% 12%)' }}
-                  />
-                </RadialBarChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <m.icon className={cn('h-5 w-5', m.color)} />
+          <div className="flex items-center gap-3">
+            <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4 backdrop-blur-xl">
+              <div className="text-xs text-muted-foreground">Cluster Health</div>
+              <div className="mt-1 flex items-center gap-2 text-base font-bold text-emerald-400">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative h-2.5 w-2.5 rounded-full bg-emerald-400" />
+                </span>
+                99.98% Optimal
               </div>
             </div>
-            <div>
-              <p className="text-xl font-bold text-white">
-                {m.value}
-                <span className="text-sm font-normal text-muted-foreground">{m.suffix}</span>
-              </p>
-              <p className="text-xs text-muted-foreground">{m.label}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── 3D Interactive Summary Stat Cards ── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        {summaryStats.map((stat, i) => (
+          <GlassCard
+            key={stat.label}
+            hover={true}
+            gradient={stat.gradient as any}
+            delay={i * 0.05}
+            className="p-5"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {stat.label}
+              </span>
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                <stat.icon className={cn("h-4.5 w-4.5", stat.color)} />
+              </div>
+            </div>
+            <div className="mt-3 text-3xl font-extrabold tracking-tight text-white">
+              <AnimatedCounter value={stat.value} suffix={stat.suffix} />
+            </div>
+            <div className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="text-emerald-400 font-semibold">{stat.change}</span>
+              <span>vs last cycle</span>
             </div>
           </GlassCard>
         ))}
       </div>
 
-      {/* Growth charts */}
-      <div className="mb-6 grid gap-6 lg:grid-cols-2">
-        <GlassCard hover={false} delay={0.1}>
-          <div className="p-6 pb-2">
-            <h3 className="font-semibold text-white">Memory Growth</h3>
-            <p className="text-sm text-muted-foreground">Long-term memory items over time</p>
+      {/* ── Top Efficiency Metrics Bar ── */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+        {topMetrics.map((m, i) => (
+          <GlassCard key={m.label} hover={true} delay={0.15 + i * 0.05} className="p-5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-muted-foreground">{m.label}</span>
+              <m.icon className={cn("h-4 w-4", m.color)} />
+            </div>
+            <div className="mt-2 text-2xl font-bold text-white">
+              {m.value}
+              <span className="text-sm font-normal text-muted-foreground ml-1">{m.suffix}</span>
+            </div>
+            <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-sky-400 to-cyan-400"
+                style={{ width: `${m.pct}%` }}
+              />
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+
+      {/* ── Main Charts Grid ── */}
+      <div className="grid gap-6 lg:grid-cols-2 mb-8">
+        {/* Interaction Velocity Chart */}
+        <GlassCard hover={false} delay={0.2} className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-bold text-white">Computational Velocity</h3>
+              <p className="text-xs text-muted-foreground">Daily request volume across agents and memory</p>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-sky-400">
+              <Activity className="h-3 w-3" /> Live
+            </div>
           </div>
-          <div className="h-[240px] w-full p-4 pl-2">
+          <div className="h-[280px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={usageChart} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="anChat" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#38bdf8" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#38bdf8" stopOpacity={0} />
+                  </linearGradient>
+                  <linearGradient id="anAgents" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22d3ee" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#22d3ee" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                <XAxis dataKey="day" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                <Tooltip
+                  contentStyle={{
+                    background: "rgba(10, 15, 26, 0.95)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "12px",
+                    fontSize: "12px",
+                  }}
+                />
+                <Area type="monotone" dataKey="chat" stroke="#38bdf8" strokeWidth={2} fill="url(#anChat)" />
+                <Area type="monotone" dataKey="agents" stroke="#22d3ee" strokeWidth={2} fill="url(#anAgents)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </GlassCard>
+
+        {/* Memory & Knowledge Growth */}
+        <GlassCard hover={false} delay={0.25} className="p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="font-bold text-white">Memory Index Expansion</h3>
+              <p className="text-xs text-muted-foreground">Cumulative long-term vector storage</p>
+            </div>
+            <span className="text-xs text-emerald-400 font-semibold">+18% Monthly</span>
+          </div>
+          <div className="h-[280px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={memoryGrowthChart} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
                 <defs>
-                  <linearGradient id="gMemory" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(280 83% 62%)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="hsl(280 83% 62%)" stopOpacity={0} />
+                  <linearGradient id="anMem" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#a78bfa" stopOpacity={0.4} />
+                    <stop offset="100%" stopColor="#a78bfa" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 18% 16%)" vertical={false} />
-                <XAxis dataKey="month" stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                <XAxis dataKey="month" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
                 <Tooltip
-                  contentStyle={{ background: 'hsl(222 24% 6%)', border: '1px solid hsl(222 18% 16%)', borderRadius: '12px', fontSize: '12px' }}
+                  contentStyle={{
+                    background: "rgba(10, 15, 26, 0.95)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "12px",
+                    fontSize: "12px",
+                  }}
                 />
-                <Area type="monotone" dataKey="items" stroke="hsl(280 83% 62%)" strokeWidth={2} fill="url(#gMemory)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassCard>
-
-        <GlassCard hover={false} delay={0.15}>
-          <div className="p-6 pb-2">
-            <h3 className="font-semibold text-white">Knowledge Expansion</h3>
-            <p className="text-sm text-muted-foreground">Indexed documents over time</p>
-          </div>
-          <div className="h-[240px] w-full p-4 pl-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={knowledgeGrowthChart} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gKnowledge" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(142 71% 45%)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="hsl(142 71% 45%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 18% 16%)" vertical={false} />
-                <XAxis dataKey="month" stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ background: 'hsl(222 24% 6%)', border: '1px solid hsl(222 18% 16%)', borderRadius: '12px', fontSize: '12px' }}
-                />
-                <Area type="monotone" dataKey="docs" stroke="hsl(142 71% 45%)" strokeWidth={2} fill="url(#gKnowledge)" />
+                <Area type="monotone" dataKey="items" stroke="#a78bfa" strokeWidth={2} fill="url(#anMem)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </GlassCard>
       </div>
 
-      {/* Usage + productivity */}
-      <div className="mb-6 grid gap-6 lg:grid-cols-3">
-        <GlassCard hover={false} delay={0.2} className="lg:col-span-2">
-          <div className="p-6 pb-2">
-            <h3 className="font-semibold text-white">Weekly Usage Breakdown</h3>
-            <p className="text-sm text-muted-foreground">AI interactions by type across the week</p>
-          </div>
-          <div className="h-[280px] w-full p-4 pl-2">
+      {/* ── Productivity & Model Allocation ── */}
+      <div className="grid gap-6 lg:grid-cols-3">
+        <GlassCard hover={false} delay={0.3} className="lg:col-span-2 p-6">
+          <h3 className="font-bold text-white mb-1">Productivity Score Index</h3>
+          <p className="text-xs text-muted-foreground mb-4">Automated execution efficiency across weeks</p>
+          <div className="h-[240px] w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={usageChart} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 18% 16%)" vertical={false} />
-                <XAxis dataKey="day" stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} />
+              <LineChart data={productivityChart} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
+                <XAxis dataKey="week" stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#64748b" fontSize={11} tickLine={false} axisLine={false} domain={[80, 100]} />
                 <Tooltip
-                  contentStyle={{ background: 'hsl(222 24% 6%)', border: '1px solid hsl(222 18% 16%)', borderRadius: '12px', fontSize: '12px' }}
-                  cursor={{ fill: 'hsl(222 18% 16% / 0.3)' }}
+                  contentStyle={{
+                    background: "rgba(10, 15, 26, 0.95)",
+                    border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: "12px",
+                    fontSize: "12px",
+                  }}
                 />
-                <Bar dataKey="chat" stackId="a" fill="hsl(199 89% 56%)" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="agents" stackId="a" fill="hsl(189 94% 50%)" radius={[0, 0, 0, 0]} />
-                <Bar dataKey="memory" stackId="a" fill="hsl(280 83% 62%)" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassCard>
-
-        <GlassCard hover={false} delay={0.25}>
-          <div className="p-6 pb-2">
-            <h3 className="font-semibold text-white">Productivity Trend</h3>
-            <p className="text-sm text-muted-foreground">8-week rolling score</p>
-          </div>
-          <div className="h-[280px] w-full p-4 pl-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={productivityChart} margin={{ top: 8, right: 8, left: -20, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 18% 16%)" vertical={false} />
-                <XAxis dataKey="week" stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} domain={[60, 100]} />
-                <Tooltip
-                  contentStyle={{ background: 'hsl(222 24% 6%)', border: '1px solid hsl(222 18% 16%)', borderRadius: '12px', fontSize: '12px' }}
-                />
-                <Line
-                  type="monotone"
-                  dataKey="score"
-                  stroke="hsl(199 89% 56%)"
-                  strokeWidth={2.5}
-                  dot={{ fill: 'hsl(199 89% 56%)', r: 4 }}
-                  activeDot={{ r: 6 }}
-                />
+                <Line type="monotone" dataKey="score" stroke="#34d399" strokeWidth={3} dot={{ fill: "#34d399", r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
           </div>
         </GlassCard>
-      </div>
 
-      {/* Interaction history + LLM usage */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <GlassCard hover={false} delay={0.3} className="lg:col-span-2">
-          <div className="p-6 pb-2">
-            <h3 className="font-semibold text-white">AI Interaction History</h3>
-            <p className="text-sm text-muted-foreground">Hourly interaction volume (last 24h)</p>
-          </div>
-          <div className="h-[240px] w-full p-4 pl-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={interactionHistory} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="gInteract" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(38 92% 56%)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="hsl(38 92% 56%)" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(222 18% 16%)" vertical={false} />
-                <XAxis dataKey="hour" stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} />
-                <YAxis stroke="hsl(215 16% 50%)" fontSize={11} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{ background: 'hsl(222 24% 6%)', border: '1px solid hsl(222 18% 16%)', borderRadius: '12px', fontSize: '12px' }}
-                />
-                <Area type="monotone" dataKey="interactions" stroke="hsl(38 92% 56%)" strokeWidth={2} fill="url(#gInteract)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </GlassCard>
-
-        <GlassCard hover={false} delay={0.35}>
-          <div className="p-6 pb-2">
-            <h3 className="font-semibold text-white">LLM Provider Usage</h3>
-            <p className="text-sm text-muted-foreground">Cost distribution by model</p>
-          </div>
-          <div className="space-y-3 p-6 pt-2">
-            {llmDistribution.map((m, i) => (
-              <motion.div
-                key={m.name}
-                initial={{ opacity: 0, x: -12 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.4 + i * 0.06 }}
-              >
+        <GlassCard hover={false} delay={0.35} className="p-6">
+          <h3 className="font-bold text-white mb-1">Multi-LLM Dispatch</h3>
+          <p className="text-xs text-muted-foreground mb-4">Routed token allocation</p>
+          <div className="space-y-4 pt-2">
+            {llmDistribution.map((item) => (
+              <div key={item.name} className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
-                  <span className="flex items-center gap-2 text-white/80">
-                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: m.color }} />
-                    {m.name}
+                  <span className="font-medium text-white flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full" style={{ background: item.color }} />
+                    {item.name}
                   </span>
-                  <span className="font-semibold text-white">{m.value}%</span>
+                  <span className="text-muted-foreground font-mono">{item.value}%</span>
                 </div>
-                <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-white/5">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ width: `${m.value}%` }}
-                    transition={{ duration: 1, delay: 0.5 + i * 0.06, ease: 'easeOut' }}
-                    className="h-full rounded-full"
-                    style={{ background: m.color }}
-                  />
+                <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/[0.08]">
+                  <div className="h-full rounded-full" style={{ width: `${item.value}%`, background: item.color }} />
                 </div>
-              </motion.div>
+              </div>
             ))}
           </div>
         </GlassCard>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
@@ -6,6 +6,7 @@ import { Sidebar, useSidebarState } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { PageTransition } from "@/components/page-transition";
 import { GradientMesh } from "@/components/gradient-mesh";
+import { SpatialDock } from "@/components/spatial-dock";
 import { Loader2 } from "lucide-react";
 
 const GUEST_FLAG = "rajos_guest";
@@ -91,6 +92,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </PageTransition>
         </main>
       </div>
+
+      {/* Floating 3D Spatial Dock */}
+      <SpatialDock />
     </div>
   );
 }
