@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -178,6 +178,32 @@ def complete_task(
     return {
         "message": "Task completed successfully",
         "task_id": task.id,
+        "completed_at": task.completed_at,
+    }
+
+
+@router.patch("/{task_id}/toggle")
+def toggle_task(
+    task_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Toggle a task between completed and pending."""
+    task = db.query(Task).filter(
+        Task.id == task_id, Task.user_id == user.id
+    ).first()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    task.completed = not task.completed
+    task.completed_at = datetime.utcnow() if task.completed else None
+    db.commit()
+    db.refresh(task)
+
+    return {
+        "message": f"Task marked as {'completed' if task.completed else 'pending'}",
+        "task_id": task.id,
+        "completed": task.completed,
         "completed_at": task.completed_at,
     }
 
