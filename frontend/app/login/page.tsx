@@ -108,7 +108,7 @@ export default function LoginPage() {
     [mode, username, email, password, router]
   );
 
-  // Google OAuth
+  // Google OAuth — Step 1: Sign in, Step 2: Phone Link for task notifications
   const handleGoogleLogin = useCallback(async () => {
     setError(null);
     setSuccess(null);
@@ -116,8 +116,8 @@ export default function LoginPage() {
     try {
       const res = await googleLogin();
       if (res && res.access_token) {
-        setSuccess(res.message || "Signed in with Google! Redirecting to dashboard...");
-        setTimeout(() => router.push("/dashboard"), 700);
+        setSuccess("Signed in with Google! Next: Connect mobile for task notifications...");
+        setTimeout(() => router.push("/auth/phone-link"), 600);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Google sign-in failed";
@@ -383,13 +383,25 @@ export default function LoginPage() {
 
                   {/* Dev mode helper badge */}
                   {devOtpHint && (
-                    <div className="rounded-xl border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200 flex items-center justify-between">
-                      <span>
-                        🔑 Dev code: <strong className="font-mono text-white text-sm tracking-widest">{devOtpHint}</strong>
-                      </span>
-                      <span className="text-[10px] text-amber-300 font-semibold uppercase tracking-wider">
-                        Auto-filled
-                      </span>
+                    <div className="rounded-2xl border border-amber-400/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-transparent p-4 text-xs text-amber-200 shadow-[0_0_20px_rgba(251,191,36,0.15)]">
+                      <div className="flex items-center justify-between font-semibold text-amber-300 mb-1">
+                        <span className="flex items-center gap-1.5">
+                          <KeyRound className="h-4 w-4 text-amber-400" />
+                          Development Mode Verification Code:
+                        </span>
+                        <span className="rounded bg-amber-400/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wider">
+                          Auto-filled
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between rounded-xl border border-amber-400/30 bg-black/40 px-3.5 py-2">
+                        <span className="font-mono text-xl font-extrabold tracking-widest text-white">
+                          {devOtpHint}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground">Ready to verify</span>
+                      </div>
+                      <p className="mt-2 text-[11px] text-amber-200/70 leading-relaxed">
+                        💡 Real carrier SMS is dispatched when <code className="text-white font-mono">FAST2SMS_API_KEY</code> or Twilio credentials are configured in <code className="text-white font-mono">backend/.env</code>.
+                      </p>
                     </div>
                   )}
 

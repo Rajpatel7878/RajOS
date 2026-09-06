@@ -74,6 +74,12 @@ export interface ChatMessage {
   agent?: string;
   sources?: { title: string; snippet: string }[];
   memoryUsed?: string[];
+  suggestedTasks?: Array<{
+    title: string;
+    description?: string;
+    priority: "high" | "normal" | "low";
+    due_date?: string;
+  }>;
 }
 
 export interface Conversation {

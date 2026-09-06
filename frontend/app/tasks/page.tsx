@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { GlassCard } from "@/components/glass-card";
+import { DailyRoutineCreator } from "@/components/daily-routine-creator";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -42,6 +43,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [showRoutineModal, setShowRoutineModal] = useState(false);
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [priority, setPriority] = useState<"high" | "normal" | "low">("normal");
@@ -139,14 +141,33 @@ export default function TasksPage() {
           </p>
         </div>
 
-        <Button
-          onClick={() => setShowForm(!showForm)}
-          className="gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-sky-500/25 hover:from-sky-400 hover:to-cyan-300 hover:shadow-sky-500/40 transition-all duration-200"
-        >
-          {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-          {showForm ? "Cancel" : "New Task"}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Button
+            type="button"
+            onClick={() => setShowRoutineModal(true)}
+            variant="outline"
+            className="gap-2 rounded-xl border-sky-400/40 bg-sky-400/10 px-4 py-2.5 text-xs font-semibold text-sky-300 hover:bg-sky-400/20 hover:text-white transition-all shadow-[0_0_15px_rgba(56,189,248,0.2)]"
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            ⚡ Daily Routine (Pushups & Study)
+          </Button>
+
+          <Button
+            onClick={() => setShowForm(!showForm)}
+            className="gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-400 px-5 py-2.5 text-xs font-semibold text-white shadow-lg shadow-sky-500/25 hover:from-sky-400 hover:to-cyan-300 hover:shadow-sky-500/40 transition-all duration-200"
+          >
+            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {showForm ? "Cancel" : "New Task"}
+          </Button>
+        </div>
       </div>
+
+      {/* ── Daily Routine & Habit Creator Modal ── */}
+      <DailyRoutineCreator
+        isOpen={showRoutineModal}
+        onClose={() => setShowRoutineModal(false)}
+        onTasksCreated={loadTasks}
+      />
 
       {/* ── 3D Task Overview Stats ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">

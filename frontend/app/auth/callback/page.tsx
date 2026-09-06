@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -85,8 +85,8 @@ export default function AuthCallbackPage() {
             localStorage.setItem("token", token);
             localStorage.setItem("access_token", token);
             setStatus("success");
-            setMessage(`Welcome to RajOS, ${userName}! 🎉`);
-            setTimeout(() => router.push("/dashboard"), 800);
+            setMessage(`Welcome to RajOS, ${userName}! Setting up task notifications...`);
+            setTimeout(() => router.push("/auth/phone-link"), 700);
             return;
           }
         }
@@ -97,8 +97,8 @@ export default function AuthCallbackPage() {
         localStorage.setItem("token", localToken);
         localStorage.setItem("access_token", localToken);
         setStatus("success");
-        setMessage(`Welcome to RajOS, ${userName}! 🎉`);
-        setTimeout(() => router.push("/dashboard"), 800);
+        setMessage(`Welcome to RajOS, ${userName}! Setting up task notifications...`);
+        setTimeout(() => router.push("/auth/phone-link"), 700);
       } catch (err) {
         console.error("OAuth callback error:", err);
         setStatus("error");

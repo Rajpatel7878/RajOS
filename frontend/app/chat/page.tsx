@@ -29,17 +29,21 @@ import { conversations, llmModels, agents } from '@/lib/data';
 import type { ChatMessage } from '@/lib/types';
 import { sendMessage } from "@/services/api/chat";
 import { getHistory } from "@/services/api/history";
+import { createTask } from "@/services/api/tasks";
+import { DailyRoutineCreator } from "@/components/daily-routine-creator";
+import { Dumbbell, Check } from "lucide-react";
 
 const suggestionPrompts = [
-  { icon: 'Zap', text: 'Automate my weekly report' },
-  { icon: 'BookOpen', text: 'Summarize the Q3 financial report' },
-  { icon: 'BrainCircuit', text: 'What do you remember about my goals?' },
-  { icon: 'Bot', text: 'Plan a product launch with agents' },
+  { icon: 'Dumbbell', text: 'Create my daily 50 pushups workout routine' },
+  { icon: 'BookOpen', text: 'Schedule a 2-hour focused study block' },
+  { icon: 'Zap', text: 'Generate daily routine & productivity habits' },
+  { icon: 'BrainCircuit', text: 'Plan today\'s top 3 priority objectives' },
 ];
 
 const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Zap,
+  Dumbbell,
   BookOpen,
+  Zap,
   BrainCircuit,
   Bot,
 };
@@ -54,6 +58,7 @@ export default function ChatPage() {
   const [isTyping, setIsTyping] = useState(false);
   const [activeConv, setActiveConv] = useState<string | number>(conversations[0].id);
   const [conversationId, setConversationId] = useState<number | null>(null);
+  const [showRoutineModal, setShowRoutineModal] = useState(false);
   const [history, setHistory] = useState<
     {
       conversation_id: number;
@@ -142,15 +147,20 @@ export default function ChatPage() {
       const aiMsg: ChatMessage = {
         id: `msg-${Date.now() + 1}`,
         role: 'assistant',
-        content: data.response ?? data.message ?? data.content ?? 'No response received from AI.',
+        content: data.response ?? (data as any).message ?? (data as any).content ?? 'No response received from AI.',
         timestamp: new Date().toLocaleTimeString('en-US', {
           hour: 'numeric',
           minute: '2-digit',
         }),
         model: data.model ?? selectedModel.name,
         agent: respondingAgentName,
-        sources: data.sources ?? [],
+        sources: Array.isArray(data.sources)
+          ? data.sources.map((s: any) =>
+              typeof s === 'string' ? { title: s, snippet: s } : s
+            )
+          : [],
         memoryUsed: data.memory_used ?? [],
+        suggestedTasks: (data as any).suggested_tasks ?? [],
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -362,13 +372,31 @@ export default function ChatPage() {
                 </AnimatePresence>
               </div>
 
-              <div className="ml-auto flex items-center gap-2 text-xs text-muted-foreground">
-                <BrainCircuit className="h-4 w-4 text-violet-400" />
-                <span className="hidden sm:inline">3 memories loaded</span>
-                <BookOpen className="h-4 w-4 text-emerald-400 ml-2" />
-                <span className="hidden sm:inline">14 docs in context</span>
+              <div className="ml-auto flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowRoutineModal(true)}
+                  className="gap-1.5 rounded-xl border-sky-400/40 bg-sky-400/10 px-3 py-1.5 text-xs font-semibold text-sky-300 hover:bg-sky-400/20 hover:text-white transition-all shadow-[0_0_12px_rgba(56,189,248,0.2)]"
+                >
+                  <Sparkles className="h-3.5 w-3.5" />
+                  ⚡ Daily Routines (Pushups & Study)
+                </Button>
+
+                <div className="hidden lg:flex items-center gap-2 text-xs text-muted-foreground ml-2">
+                  <BrainCircuit className="h-4 w-4 text-violet-400" />
+                  <span>3 memories</span>
+                  <BookOpen className="h-4 w-4 text-emerald-400 ml-1" />
+                  <span>14 docs</span>
+                </div>
               </div>
             </div>
+
+            {/* Daily Routine Creator Modal */}
+            <DailyRoutineCreator
+              isOpen={showRoutineModal}
+              onClose={() => setShowRoutineModal(false)}
+            />
 
             {/* Messages */}
             <div className="min-h-0 flex-1 overflow-y-auto p-6 no-scrollbar">
@@ -542,6 +570,21 @@ function MessageBubble({ message, agentName }: { message: ChatMessage; agentName
               ))}
             </div>
           )}
+
+          {/* Actionable Protocol Tasks (Pushups, Workout, Study blocks) */}
+          {message.suggestedTasks && message.suggestedTasks.length > 0 && (
+            <div className="mt-4 space-y-2.5 border-t border-white/[0.08] pt-3">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-bold text-sky-400 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" /> Actionable Protocol Tasks
+                </p>
+                <span className="text-[10px] text-muted-foreground">Click to add to dashboard</span>
+              </div>
+              {message.suggestedTasks.map((t, idx) => (
+                <TaskAddCard key={idx} task={t} />
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Action bar */}
@@ -593,5 +636,65 @@ function TypingIndicator({ agentName }: { agentName: string }) {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+function TaskAddCard({
+  task,
+}: {
+  task: { title: string; description?: string; priority: 'high' | 'normal' | 'low'; due_date?: string };
+}) {
+  const [added, setAdded] = useState(false);
+  const [adding, setAdding] = useState(false);
+
+  const handleAdd = async () => {
+    setAdding(true);
+    try {
+      await createTask({
+        title: task.title,
+        description: task.description,
+        priority: task.priority,
+        due_date: task.due_date || new Date().toISOString().split('T')[0],
+      });
+      setAdded(true);
+    } catch {
+      // ignore
+    } finally {
+      setAdding(false);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-sky-400/20 bg-sky-500/[0.05] p-3 text-left">
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-bold text-white leading-tight">{task.title}</div>
+        {task.description && (
+          <div className="mt-0.5 text-[11px] text-muted-foreground line-clamp-1">
+            {task.description}
+          </div>
+        )}
+      </div>
+      <Button
+        size="sm"
+        disabled={added || adding}
+        onClick={handleAdd}
+        className={cn(
+          'h-7 shrink-0 gap-1 rounded-lg px-2.5 text-[11px] font-semibold transition-all',
+          added
+            ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+            : 'bg-sky-400/20 text-sky-300 border border-sky-400/40 hover:bg-sky-400/30'
+        )}
+      >
+        {added ? (
+          <>
+            <Check className="h-3 w-3" /> Added
+          </>
+        ) : (
+          <>
+            <Plus className="h-3 w-3" /> Add Task
+          </>
+        )}
+      </Button>
+    </div>
   );
 }
