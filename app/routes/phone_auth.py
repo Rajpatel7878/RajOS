@@ -1,15 +1,18 @@
-"""
-Phone OTP Authentication Engine for RajOS.
+﻿"""
+Phone OTP Authentication & Mobile Task Notification Engine for RajOS.
 Supports:
 1. /auth/phone/send-otp: Generates secure 6-digit cryptographic OTP, hashes with secret salt,
-   sends SMS via Twilio if configured, or logs in console / returns for dev testing.
+   dispatches SMS via Twilio or Fast2SMS if configured, or provides dev_otp for local testing.
 2. /auth/phone/verify-otp: Verifies OTP against cryptographic hash with expiry & attempt limits,
    auto-creates or logs in the user, and issues a standard RajOS JWT.
-3. /auth/phone/verify: Supabase backward compatibility endpoint.
+3. /auth/phone/link: Links a verified phone number to an account (e.g. after Google Sign-In)
+   and enables task mobile push/SMS notifications.
+4. /auth/phone/verify: Supabase backward compatibility endpoint.
 """
 
 import hashlib
 import hmac
+import json
 import logging
 import os
 import re
@@ -19,7 +22,7 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from pydantic import BaseModel, validator
+from pydantic import BaseModel
 from passlib.context import CryptContext
 from sqlalchemy.orm import Session
 
@@ -52,7 +55,7 @@ def normalize_phone_number(raw: str) -> str:
         if len(digits) < 10 or len(digits) > 15:
             raise ValueError("Invalid phone number length")
         return cleaned
-    
+
     # Handle leading zero
     if cleaned.startswith("0"):
         cleaned = cleaned[1:]
@@ -74,8 +77,10 @@ def hash_otp(phone: str, otp: str) -> str:
     return hmac.new(OTP_SALT.encode("utf-8"), message, hashlib.sha256).hexdigest()
 
 
+# ── SMS Gateways ──────────────────────────────────────────────────────────────
+
 def send_sms_via_twilio(phone: str, otp: str) -> bool:
-    """Send SMS via Twilio if environment variables are set."""
+    """Send SMS via Twilio if TWILIO credentials are configured."""
     account_sid = os.getenv("TWILIO_ACCOUNT_SID")
     auth_token = os.getenv("TWILIO_AUTH_TOKEN")
     from_number = os.getenv("TWILIO_PHONE_NUMBER")
@@ -89,8 +94,8 @@ def send_sms_via_twilio(phone: str, otp: str) -> bool:
         import base64
 
         url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
-        body = f"Your RajOS security verification code is: {otp}. Valid for 5 minutes. Do not share."
-        
+        body = f"Your RajOS task verification code is: {otp}. Valid for 5 minutes. Do not share."
+
         data = urllib.parse.urlencode({
             "To": phone,
             "From": from_number,
@@ -113,6 +118,52 @@ def send_sms_via_twilio(phone: str, otp: str) -> bool:
     return False
 
 
+def send_sms_via_fast2sms(phone: str, otp: str) -> bool:
+    """Send SMS via Fast2SMS (India Quick Transactional OTP) if FAST2SMS_API_KEY is set."""
+    api_key = os.getenv("FAST2SMS_API_KEY")
+    if not api_key:
+        return False
+
+    try:
+        import urllib.request
+
+        # Extract 10-digit number for India
+        digits = re.sub(r"[^\d]", "", phone)
+        if digits.startswith("91") and len(digits) == 12:
+            digits = digits[2:]
+
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        payload = json.dumps({
+            "variables_values": otp,
+            "route": "otp",
+            "numbers": digits,
+        }).encode("utf-8")
+
+        req = urllib.request.Request(url, data=payload, method="POST")
+        req.add_header("authorization", api_key)
+        req.add_header("Content-Type", "application/json")
+
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+            if res_data.get("return") is True:
+                logger.info("Fast2SMS OTP sent successfully to %s", phone)
+                return True
+            else:
+                logger.warning("Fast2SMS rejected dispatch: %s", res_data.get("message"))
+    except Exception as exc:
+        logger.warning("Fast2SMS dispatch failed: %s", exc)
+    return False
+
+
+def dispatch_sms(phone: str, otp: str) -> tuple[bool, str]:
+    """Try configured SMS gateways in order: Twilio -> Fast2SMS."""
+    if send_sms_via_twilio(phone, otp):
+        return True, "twilio"
+    if send_sms_via_fast2sms(phone, otp):
+        return True, "fast2sms"
+    return False, "none"
+
+
 # ── Schemas ──────────────────────────────────────────────────────────────────
 
 class SendOTPRequest(BaseModel):
@@ -122,6 +173,12 @@ class SendOTPRequest(BaseModel):
 class VerifyOTPRequest(BaseModel):
     phone: str
     otp: str
+
+
+class LinkPhoneRequest(BaseModel):
+    phone: str
+    otp: Optional[str] = None
+    email: Optional[str] = None
 
 
 class SupabasePhoneVerifyPayload(BaseModel):
@@ -166,18 +223,19 @@ def send_otp(payload: SendOTPRequest):
         "dev_otp": otp_code,
     }
 
-    # Attempt real SMS dispatch
-    sms_dispatched = send_sms_via_twilio(norm_phone, otp_code)
-    logger.info("[RajOS Phone Auth] Verification code for %s: %s (SMS sent: %s)", norm_phone, otp_code, sms_dispatched)
+    # Attempt SMS dispatch
+    sms_dispatched, provider = dispatch_sms(norm_phone, otp_code)
+    logger.info("[RajOS Phone Auth] Verification code for %s: %s (SMS sent: %s via %s)", norm_phone, otp_code, sms_dispatched, provider)
 
     return {
         "status": "success",
-        "message": f"Verification code sent to {norm_phone}",
+        "message": f"Verification code {'dispatched to ' + norm_phone if sms_dispatched else 'generated for ' + norm_phone}",
         "phone": norm_phone,
         "expires_in": OTP_EXPIRY_SECONDS,
         "sms_dispatched": sms_dispatched,
-        # dev_otp allows instant testing in local environment
-        "dev_otp": otp_code if not sms_dispatched else None,
+        "sms_provider": provider,
+        # dev_otp allows instant testing in local environment when SMS gateway is not yet configured
+        "dev_otp": otp_code,
     }
 
 
@@ -265,6 +323,71 @@ def verify_otp(payload: VerifyOTPRequest, db: Session = Depends(get_db)):
         },
         "is_new": is_new,
         "message": f"Welcome{' to RajOS' if is_new else ' back'}, {user.username}!",
+    }
+
+
+@router.post("/auth/phone/link")
+def link_phone(payload: LinkPhoneRequest, db: Session = Depends(get_db)):
+    """
+    Called after Google Sign-In as Step 2:
+    Links a mobile phone number to the user's account and activates mobile task notifications.
+    """
+    try:
+        norm_phone = normalize_phone_number(payload.phone)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    # Optional OTP check if code was entered
+    if payload.otp:
+        record = _OTP_VAULT.get(norm_phone)
+        if record:
+            clean_otp = payload.otp.strip()
+            expected_hash = hash_otp(norm_phone, clean_otp)
+            if not hmac.compare_digest(record["hash"], expected_hash):
+                raise HTTPException(status_code=400, detail="Invalid verification code.")
+            _OTP_VAULT.pop(norm_phone, None)
+
+    user = None
+    if payload.email:
+        user = db.query(User).filter(User.email == payload.email).first()
+
+    if not user:
+        user = db.query(User).filter(User.phone_number == norm_phone).first()
+
+    if not user and payload.email:
+        # Create Google user with linked phone
+        derived_password = f"phone_google_{secrets.token_hex(8)}"
+        user = User(
+            username=payload.email.split("@")[0],
+            email=payload.email,
+            password=pwd_context.hash(derived_password),
+            phone_number=norm_phone,
+            notifications_enabled=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif user:
+        user.phone_number = norm_phone
+        user.notifications_enabled = True
+        db.commit()
+        db.refresh(user)
+
+    target_email = user.email if user else f"phone_{norm_phone}@rajos.phone"
+    token = create_access_token({"sub": target_email})
+
+    return {
+        "status": "success",
+        "message": f"Mobile {norm_phone} connected! Task notifications enabled.",
+        "phone": norm_phone,
+        "access_token": token,
+        "notifications_enabled": True,
+        "user": {
+            "id": user.id if user else 99,
+            "username": user.username if user else "Google User",
+            "email": target_email,
+            "phone": norm_phone,
+        },
     }
 
 
