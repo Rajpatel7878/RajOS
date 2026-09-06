@@ -2,12 +2,11 @@
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-// In-memory persistent task store for resilient fallback
 let _MEMORY_TASKS = [
   {
     id: 1,
-    title: "Morning Routine: 50 Pushups & Hydration",
-    description: "3 sets (20-15-15) with 60s rest. 500ml water.",
+    title: "Daily 50 Pushups (3 Sets: 20-15-15)",
+    description: "Strict form, full chest touch, 60s rest between sets.",
     completed: false,
     priority: "high",
     due_date: new Date().toISOString().split("T")[0],
@@ -16,7 +15,7 @@ let _MEMORY_TASKS = [
   {
     id: 2,
     title: "Deep Work Study Block (2 Hours)",
-    description: "Focus on primary learning topics with 50m/10m Pomodoro blocks.",
+    description: "Focus on primary learning topics with 50m/10m Pomodoro intervals.",
     completed: false,
     priority: "high",
     due_date: new Date().toISOString().split("T")[0],
@@ -24,8 +23,8 @@ let _MEMORY_TASKS = [
   },
   {
     id: 3,
-    title: "RajOS Task Telemetry Review",
-    description: "Review automated agent outputs and sync with mobile phone notifications.",
+    title: "Morning Routine: 500ml Water & Task Planning",
+    description: "Hydrate immediately after waking up and set today''s top 3 objectives.",
     completed: true,
     priority: "normal",
     due_date: new Date().toISOString().split("T")[0],
@@ -36,7 +35,6 @@ let _MEMORY_TASKS = [
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization") || "";
 
-  // 1. Try FastAPI backend
   try {
     const backendRes = await fetch(`${BACKEND_URL}/tasks/`, {
       headers: { Authorization: authHeader },
@@ -58,7 +56,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // 1. Try FastAPI backend
     try {
       const backendRes = await fetch(`${BACKEND_URL}/tasks/`, {
         method: "POST",
@@ -77,7 +74,6 @@ export async function POST(request: Request) {
       // Fall through
     }
 
-    // 2. Memory store
     const newTask = {
       id: Date.now(),
       title: body.title || "Untitled Task",
@@ -92,6 +88,51 @@ export async function POST(request: Request) {
   } catch (err) {
     return NextResponse.json(
       { detail: err instanceof Error ? err.message : "Failed to create task" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(request: Request) {
+  const authHeader = request.headers.get("authorization") || "";
+  try {
+    const body = await request.json();
+    const taskId = Number(body.id || body.task_id);
+    const completed = typeof body.completed === "boolean" ? body.completed : true;
+
+    // Try backend
+    try {
+      const endpoint = completed ? `${BACKEND_URL}/tasks/${taskId}/complete` : `${BACKEND_URL}/tasks/${taskId}/toggle`;
+      const backendRes = await fetch(endpoint, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: authHeader,
+        },
+        signal: AbortSignal.timeout(3000),
+      });
+      if (backendRes.ok) {
+        const data = await backendRes.json();
+        return NextResponse.json(data);
+      }
+    } catch {
+      // Fall through
+    }
+
+    // Memory update
+    const target = _MEMORY_TASKS.find((t) => t.id === taskId);
+    if (target) {
+      target.completed = completed;
+    }
+
+    return NextResponse.json({
+      message: `Task ${taskId} marked as ${completed ? "completed" : "pending"}`,
+      task_id: taskId,
+      completed,
+    });
+  } catch (err) {
+    return NextResponse.json(
+      { detail: err instanceof Error ? err.message : "Failed to update task" },
       { status: 500 }
     );
   }
