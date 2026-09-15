@@ -20,6 +20,8 @@ import {
   ThumbsDown,
   RefreshCw,
   User,
+  Loader2,
+  AlertCircle,
 } from 'lucide-react';
 import { AppShell } from '@/components/app-shell';
 import { GlassCard } from '@/components/glass-card';
@@ -66,24 +68,34 @@ export default function ChatPage() {
       messages: { role: 'user' | 'assistant'; content: string }[];
     }[]
   >([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Scroll to bottom when new messages arrive or while typing
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isTyping]);
 
   const loadHistory = async () => {
+    setHistoryLoading(true);
+    setHistoryError(null);
     try {
       const data = await getHistory();
       setHistory(data);
       return data;
     } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to load chat history';
       console.error('Failed to load chat history:', err);
+      setHistoryError(message);
       return [];
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
+  // Load chat history once on mount
   useEffect(() => {
     loadHistory();
   }, []);
@@ -220,55 +232,95 @@ export default function ChatPage() {
               </div>
             </div>
             <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1 no-scrollbar">
-              <p className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
-                Recent
-              </p>
-              {history
-                .filter((conv) =>
-                  conv.title.toLowerCase().includes(searchTerm.toLowerCase())
-                )
-                .map((conv) => {
-                  const lastMessage =
-                    conv.messages[conv.messages.length - 1]?.content ??
-                    'No messages yet';
+              <div className="flex items-center justify-between px-3 py-2">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                  Recent
+                </p>
+                {historyLoading && (
+                  <Loader2 className="h-3 w-3 animate-spin text-sky-400" />
+                )}
+              </div>
 
-                  return (
-                    <button
-                      key={conv.conversation_id}
-                      onClick={() => handleSelectConversation(conv.conversation_id)}
-                      className={cn(
-                        'group flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-colors',
-                        activeConv === conv.conversation_id
-                          ? 'border border-sky-400/20 bg-sky-400/5'
-                          : 'hover:bg-white/[0.03]'
-                      )}
-                    >
-                      <div className="flex items-center gap-2">
-                        <MessageSquare
-                          className={cn(
-                            'h-3.5 w-3.5 shrink-0',
-                            activeConv === conv.conversation_id
-                              ? 'text-sky-400'
-                              : 'text-muted-foreground'
-                          )}
-                        />
-                        <span className="truncate text-sm font-medium text-white">
-                          {conv.title}
+              {historyError && (
+                <div className="mx-2 my-2 rounded-lg border border-red-500/20 bg-red-500/10 p-2.5 text-xs text-red-300">
+                  <div className="flex items-center gap-1.5 font-medium">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                    <span>Failed to load history</span>
+                  </div>
+                  <p className="mt-1 line-clamp-2 text-[11px] text-red-300/80">
+                    {historyError}
+                  </p>
+                  <button
+                    onClick={() => loadHistory()}
+                    className="mt-2 inline-flex items-center gap-1 rounded border border-red-400/30 px-2 py-0.5 text-[10px] text-red-200 hover:bg-red-400/10 transition-colors"
+                  >
+                    <RefreshCw className="h-2.5 w-2.5" />
+                    Retry
+                  </button>
+                </div>
+              )}
+
+              {historyLoading && history.length === 0 ? (
+                <div className="space-y-2 px-2 py-1">
+                  {[1, 2, 3].map((i) => (
+                    <div
+                      key={i}
+                      className="h-14 w-full animate-pulse rounded-xl bg-white/[0.04]"
+                    />
+                  ))}
+                </div>
+              ) : history.length === 0 && !historyError ? (
+                <div className="px-3 py-6 text-center text-xs text-muted-foreground">
+                  No conversations yet. Start a new chat!
+                </div>
+              ) : (
+                history
+                  .filter((conv) =>
+                    conv.title.toLowerCase().includes(searchTerm.toLowerCase())
+                  )
+                  .map((conv) => {
+                    const lastMessage =
+                      conv.messages[conv.messages.length - 1]?.content ??
+                      'No messages yet';
+
+                    return (
+                      <button
+                        key={conv.conversation_id}
+                        onClick={() => handleSelectConversation(conv.conversation_id)}
+                        className={cn(
+                          'group flex w-full flex-col gap-1 rounded-xl px-3 py-2.5 text-left transition-colors',
+                          activeConv === conv.conversation_id
+                            ? 'border border-sky-400/20 bg-sky-400/5'
+                            : 'hover:bg-white/[0.03]'
+                        )}
+                      >
+                        <div className="flex items-center gap-2">
+                          <MessageSquare
+                            className={cn(
+                              'h-3.5 w-3.5 shrink-0',
+                              activeConv === conv.conversation_id
+                                ? 'text-sky-400'
+                                : 'text-muted-foreground'
+                            )}
+                          />
+                          <span className="truncate text-sm font-medium text-white">
+                            {conv.title}
+                          </span>
+                        </div>
+
+                        <span className="truncate pl-5 text-xs text-muted-foreground">
+                          {lastMessage}
                         </span>
-                      </div>
 
-                      <span className="truncate pl-5 text-xs text-muted-foreground">
-                        {lastMessage}
-                      </span>
-
-                      <div className="flex items-center gap-2 pl-5">
-                        <span className="text-[10px] text-muted-foreground">
-                          Conversation #{conv.conversation_id}
-                        </span>
-                      </div>
-                    </button>
-                  );
-                })}
+                        <div className="flex items-center gap-2 pl-5">
+                          <span className="text-[10px] text-muted-foreground">
+                            Conversation #{conv.conversation_id}
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })
+              )}
             </div>
           </GlassCard>
         </div>

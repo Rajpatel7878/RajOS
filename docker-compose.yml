@@ -1,0 +1,50 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rajos_backend_api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # --- DATABASE CONFIGURATION ---
+      # Option A (Default SQLite with persistent volume):
+      - DATABASE_URL=${DATABASE_URL:-sqlite:////app/data/rajos.db}
+      # Option B (Swappable PostgreSQL - uncomment below or pass in environment):
+      # - DATABASE_URL=postgresql://rajos_user:rajos_password@db:5432/rajos_db
+
+      - SECRET_KEY=${SECRET_KEY:-rajos_dev_secret_key_change_in_production}
+      - DEBUG=${DEBUG:-True}
+      - APP_NAME=RajOS
+    volumes:
+      - sqlite_data:/app/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # Optional Swappable PostgreSQL Database Service
+  db:
+    image: postgres:15-alpine
+    container_name: rajos_postgres_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rajos_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rajos_password}
+      POSTGRES_DB: ${POSTGRES_DB:-rajos_db}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rajos_user} -d ${POSTGRES_DB:-rajos_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  sqlite_data:
+  postgres_data:
