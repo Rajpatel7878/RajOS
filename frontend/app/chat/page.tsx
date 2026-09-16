@@ -209,8 +209,8 @@ export default function ChatPage() {
     <AppShell>
       <div className="flex h-full min-h-0 gap-6">
         {/* Conversation history sidebar */}
-        <div className="hidden w-72 shrink-0 flex-col lg:flex">
-          <GlassCard hover={false} className="flex h-full flex-col p-0">
+        <div className="hidden w-72 shrink-0 flex-col lg:flex h-full min-h-0">
+          <GlassCard hover={false} className="flex h-full min-h-0 flex-1 flex-col p-0">
             <div className="p-4 border-b border-white/[0.06]">
               <Button
                 onClick={handleNewConversation}
@@ -326,8 +326,8 @@ export default function ChatPage() {
         </div>
 
         {/* Chat area */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <GlassCard hover={false} className="flex min-h-0 flex-1 flex-col overflow-hidden p-0">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col h-full">
+          <GlassCard hover={false} className="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-0">
             {/* Chat header — model + agent selectors */}
             <div className="flex items-center gap-3 border-b border-white/[0.06] p-4">
               {/* Model selector */}
@@ -451,17 +451,19 @@ export default function ChatPage() {
             />
 
             {/* Messages */}
-            <div className="min-h-0 flex-1 overflow-y-auto p-6 no-scrollbar">
+            <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6 no-scrollbar">
               {messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center">
                   <div className="relative mb-6">
-                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/20 to-cyan-500/10">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-500/20 to-cyan-500/10 shadow-lg shadow-sky-500/20">
                       <Sparkles className="h-8 w-8 text-sky-400" />
                     </div>
                     <div className="absolute inset-0 -z-10 rounded-2xl bg-sky-500/20 blur-2xl" />
                   </div>
                   <h3 className="text-xl font-bold text-white">How can I help you today?</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">Ask anything. I have your memory and knowledge base at hand.</p>
+                  <p className="mt-2 text-sm text-muted-foreground max-w-md">
+                    Ask anything. {selectedAgent.name} is ready with your long-term memory and knowledge base.
+                  </p>
                   <div className="mt-8 grid w-full max-w-xl grid-cols-1 gap-3 sm:grid-cols-2">
                     {suggestionPrompts.map((p) => {
                       const Icon = iconMap[p.icon] ?? Sparkles;
@@ -469,10 +471,12 @@ export default function ChatPage() {
                         <button
                           key={p.text}
                           onClick={() => setInput(p.text)}
-                          className="group flex items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-left transition-all hover:border-sky-400/20 hover:bg-white/[0.04]"
+                          className="group flex items-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] p-3.5 text-left transition-all hover:border-sky-400/30 hover:bg-white/[0.05] hover:shadow-[0_8px_20px_rgba(56,189,248,0.1)]"
                         >
-                          <Icon className="h-4 w-4 text-sky-400" />
-                          <span className="text-sm text-white">{p.text}</span>
+                          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/10 text-sky-400 group-hover:scale-110 transition-transform">
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          <span className="text-xs sm:text-sm text-white font-medium">{p.text}</span>
                         </button>
                       );
                     })}
@@ -489,55 +493,93 @@ export default function ChatPage() {
               )}
             </div>
 
-            {/* Input */}
-            <div className="shrink-0 border-t border-white/[0.06] bg-background/40 p-4">
+            {/* ── Typing Chat Input Bar (Permanently Set at Bottom) ── */}
+            <div className="shrink-0 border-t border-white/[0.08] bg-black/70 p-3 sm:p-4 backdrop-blur-2xl z-20">
               <div className="mx-auto max-w-3xl">
-                {/* Memory context display */}
-                {messages.length > 0 && (
-                  <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <span className="text-xs text-muted-foreground">Context:</span>
-                    <span className="flex items-center gap-1.5 rounded-full border border-violet-400/20 bg-violet-400/5 px-2.5 py-1 text-xs text-violet-300">
-                      <BrainCircuit className="h-3 w-3" /> 3 memories
-                    </span>
-                    <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/20 bg-emerald-400/5 px-2.5 py-1 text-xs text-emerald-300">
-                      <BookOpen className="h-3 w-3" /> 14 docs
-                    </span>
-                    <span className="flex items-center gap-1.5 rounded-full border border-sky-400/20 bg-sky-400/5 px-2.5 py-1 text-xs text-sky-300">
+                {/* Context Pills & Quick Prompts Bar */}
+                <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-[11px] font-medium text-muted-foreground">Active Context:</span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-sky-400/30 bg-sky-400/10 px-2 py-0.5 text-[11px] font-medium text-sky-300">
                       <Bot className="h-3 w-3" /> {selectedAgent.name}
                     </span>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-violet-400/30 bg-violet-400/10 px-2 py-0.5 text-[11px] font-medium text-violet-300">
+                      <BrainCircuit className="h-3 w-3" /> Memory Active
+                    </span>
+                    <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
+                      <BookOpen className="h-3 w-3" /> 14 Docs
+                    </span>
                   </div>
-                )}
-                <div className="relative flex items-end gap-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2 focus-within:border-sky-400/30">
-                  <button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/5 hover:text-white">
+
+                  {/* Quick action shortcuts */}
+                  <div className="hidden sm:flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setInput("Schedule my daily 50 pushups routine today")}
+                      className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] text-muted-foreground hover:border-sky-400/30 hover:text-white transition-colors"
+                    >
+                      ⚡ Pushups
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setInput("Plan a 2-hour focused deep study block")}
+                      className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] text-muted-foreground hover:border-sky-400/30 hover:text-white transition-colors"
+                    >
+                      📚 Study
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3D Elevated Typing Box */}
+                <div className="relative flex items-end gap-2 rounded-2xl border border-white/[0.12] bg-gradient-to-b from-white/[0.05] to-black/60 p-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all duration-200 focus-within:border-sky-400/50 focus-within:bg-black/80 focus-within:shadow-[0_0_25px_rgba(56,189,248,0.25)]">
+                  <button
+                    type="button"
+                    title="Attach file"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-white/[0.08] hover:text-sky-300 active:scale-95"
+                  >
                     <Paperclip className="h-4 w-4" />
                   </button>
+
                   <textarea
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
+                      if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         handleSend();
                       }
                     }}
-                    placeholder="Message RajOS..."
+                    placeholder={`Message ${selectedAgent.name} (Enter to send, Shift+Enter for new line)...`}
                     rows={1}
-                    className="max-h-32 flex-1 resize-none bg-transparent py-2 text-sm text-white placeholder:text-muted-foreground focus:outline-none"
+                    className="min-h-[40px] max-h-36 flex-1 resize-none bg-transparent py-2 text-sm text-white placeholder:text-muted-foreground/70 focus:outline-none leading-relaxed"
                   />
-                  <button className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/5 hover:text-white">
+
+                  <button
+                    type="button"
+                    title="Voice input"
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-white/[0.08] hover:text-cyan-300 active:scale-95"
+                  >
                     <Mic className="h-4 w-4" />
                   </button>
+
                   <Button
                     onClick={handleSend}
-                    disabled={!input.trim()}
-                    className="h-9 w-9 shrink-0 rounded-lg bg-gradient-to-r from-sky-500 to-cyan-500 p-0 text-white hover:from-sky-400 hover:to-cyan-400"
+                    disabled={!input.trim() || isTyping}
+                    className={cn(
+                      "h-9 w-9 shrink-0 rounded-xl p-0 text-white transition-all duration-200 shadow-md",
+                      input.trim() && !isTyping
+                        ? "bg-gradient-to-r from-sky-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 shadow-sky-500/30 hover:scale-105 active:scale-95"
+                        : "bg-white/10 text-muted-foreground opacity-50 cursor-not-allowed"
+                    )}
                   >
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
-                <p className="mt-2 text-center text-xs text-muted-foreground">
-                  RajOS can make mistakes. Verify important information.
-                </p>
+
+                <div className="mt-2 flex items-center justify-between px-1 text-[11px] text-muted-foreground/70">
+                  <span>Press <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-white/90">Enter ↵</kbd> to send</span>
+                  <span>RajOS AI Neural Engine · Continuous Context</span>
+                </div>
               </div>
             </div>
           </GlassCard>

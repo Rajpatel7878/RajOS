@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
@@ -100,8 +100,9 @@ export default function DashboardPage() {
 
   return (
     <AppShell>
-      {/* ── 3D Hero Command Center Section ── */}
-      <div className="relative mb-8 overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-black/80 via-black/50 to-sky-950/20 p-6 sm:p-8 backdrop-blur-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)]">
+      <div className="space-y-6 pb-12 w-full max-w-full overflow-x-hidden">
+        {/* ── 3D Hero Command Center Section ── */}
+        <div className="relative overflow-hidden rounded-3xl border border-white/[0.08] bg-gradient-to-br from-black/80 via-black/50 to-sky-950/20 p-6 sm:p-8 backdrop-blur-2xl shadow-[0_20px_50px_-12px_rgba(0,0,0,0.7)]">
         {/* Glow lights behind hero */}
         <div className="pointer-events-none absolute -left-20 -top-20 h-64 w-64 rounded-full bg-sky-500/15 blur-3xl" />
         <div className="pointer-events-none absolute right-10 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-cyan-500/10 blur-[100px]" />
@@ -495,6 +496,7 @@ export default function DashboardPage() {
           </GlassCard>
         </div>
       </div>
-    </AppShell>
-  );
+    </div>
+  </AppShell>
+);
 }

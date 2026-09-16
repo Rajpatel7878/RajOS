@@ -8,13 +8,20 @@ const variants = {
   enter: { opacity: 1, y: 0 },
 };
 
-export function PageTransition({ children }: { children: ReactNode }) {
+export function PageTransition({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <motion.div
       variants={variants}
       initial="hidden"
       animate="enter"
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      className={className}
     >
       {children}
     </motion.div>

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
@@ -55,7 +55,7 @@ export function Sidebar({
       initial={false}
       animate={{ width: collapsed ? 80 : 272 }}
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-      className="sticky top-0 z-30 flex h-screen shrink-0 flex-col border-r border-white/[0.08] bg-black/60 backdrop-blur-3xl shadow-[4px_0_24px_-4px_rgba(0,0,0,0.5)]"
+      className="relative z-30 flex h-full shrink-0 flex-col border-r border-white/[0.08] bg-black/60 backdrop-blur-3xl shadow-[4px_0_24px_-4px_rgba(0,0,0,0.5)]"
       style={{ perspective: "1000px" }}
     >
       {/* 3D Vertical accent light line */}

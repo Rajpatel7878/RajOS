@@ -1,20 +1,32 @@
 "use client";
 
 import { useState, useEffect, type ReactNode } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { Sidebar, useSidebarState } from "@/components/sidebar";
 import { Topbar } from "@/components/topbar";
 import { PageTransition } from "@/components/page-transition";
 import { GradientMesh } from "@/components/gradient-mesh";
-import { SpatialDock } from "@/components/spatial-dock";
 import { Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const GUEST_FLAG = "rajos_guest";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  contentClassName,
+  noScroll,
+}: {
+  children: ReactNode;
+  contentClassName?: string;
+  noScroll?: boolean;
+}) {
   const router = useRouter();
+  const pathname = usePathname();
   const [collapsed, setCollapsed] = useSidebarState();
   const [authed, setAuthed] = useState(false);
+
+  // Auto-detect chat page to enforce full-height locked viewport (chat input pinned at bottom)
+  const isChatPage = noScroll ?? (pathname === "/chat" || pathname.startsWith("/chat/"));
 
   useEffect(() => {
     let cancelled = false;
@@ -42,7 +54,7 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   if (!authed) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex h-screen w-screen items-center justify-center bg-background">
         <div className="relative flex flex-col items-center gap-4">
           {/* Glowing loader */}
           <div className="relative">
@@ -58,7 +70,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   }
 
   return (
-    <div className="relative flex min-h-screen bg-background text-foreground overflow-hidden">
+    <div className="relative flex h-screen w-screen overflow-hidden bg-background text-foreground">
       {/* Layered 3D background */}
       <GradientMesh className="pointer-events-none fixed inset-0 z-0" />
 
@@ -78,23 +90,33 @@ export function AppShell({ children }: { children: ReactNode }) {
         }}
       />
 
-      {/* Sidebar */}
+      {/* Sidebar - permanently full height and anchored */}
       <Sidebar collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)} />
 
-      {/* Main content */}
-      <div className="relative z-10 flex min-w-0 flex-1 flex-col">
+      {/* Main content column */}
+      <div className="relative z-10 flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar />
-        <main className="flex-1 overflow-y-auto">
-          <PageTransition>
-            <div className="mx-auto max-w-[1600px] p-6 lg:p-8">
+        <main
+          className={cn(
+            "flex-1 min-h-0",
+            isChatPage ? "overflow-hidden flex flex-col" : "overflow-y-auto"
+          )}
+        >
+          <PageTransition className={cn(isChatPage ? "h-full flex flex-col flex-1 min-h-0" : "w-full")}>
+            <div
+              className={cn(
+                "mx-auto w-full max-w-[1600px]",
+                isChatPage
+                  ? "h-full flex flex-col flex-1 min-h-0 p-3 sm:p-4 lg:p-5"
+                  : "p-6 lg:p-8",
+                contentClassName
+              )}
+            >
               {children}
             </div>
           </PageTransition>
         </main>
       </div>
-
-      {/* Floating 3D Spatial Dock */}
-      <SpatialDock />
     </div>
   );
 }

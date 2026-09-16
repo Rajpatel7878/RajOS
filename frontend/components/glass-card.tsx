@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useRef, useCallback, useState, type ReactNode } from "react";
 import { motion } from "framer-motion";
@@ -74,12 +74,19 @@ export function GlassCard({
     rose: "glow-violet",
   };
 
+  const isFullHeight = className?.includes("h-full");
+  const isFlex = className?.includes("flex");
+
   return (
     <div
       ref={cardRef}
       onMouseMove={handleMouseMove}
       onMouseLeave={handleMouseLeave}
-      className="card-3d relative"
+      className={cn(
+        "card-3d relative",
+        isFullHeight && "h-full",
+        isFlex && "flex flex-col flex-1 min-h-0"
+      )}
       style={{ perspective: "1000px" }}
     >
       <motion.div
@@ -101,6 +108,8 @@ export function GlassCard({
           glow && gradient && glowMap[gradient],
           hover &&
             "hover:border-white/20 hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.7),0_0_25px_rgba(56,189,248,0.12)]",
+          isFullHeight && "h-full",
+          isFlex && "flex flex-col flex-1 min-h-0",
           className
         )}
       >
@@ -119,7 +128,11 @@ export function GlassCard({
 
         {/* ── Inner content with subtle 3D pop ── */}
         <div
-          className="relative z-20"
+          className={cn(
+            "relative z-20",
+            isFullHeight && "h-full",
+            isFlex && "flex flex-col flex-1 min-h-0"
+          )}
           style={{ transform: hover && isHovered ? "translateZ(8px)" : "translateZ(0px)", transition: "transform 0.2s ease" }}
         >
           {children}
