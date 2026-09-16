@@ -65,6 +65,17 @@ export interface KnowledgeEdge {
   weight: number;
 }
 
+export interface ChatAttachment {
+  id: string;
+  name: string;
+  type: 'image' | 'document';
+  mimeType: string;
+  size: number;
+  url: string;
+  data?: string;
+  textSnippet?: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant' | 'system';
@@ -80,6 +91,7 @@ export interface ChatMessage {
     priority: "high" | "normal" | "low";
     due_date?: string;
   }>;
+  attachments?: ChatAttachment[];
 }
 
 export interface Conversation {

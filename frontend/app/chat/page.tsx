@@ -22,18 +22,27 @@ import {
   User,
   Loader2,
   AlertCircle,
+  Image as ImageIcon,
+  FileText,
+  File,
+  X,
+  UploadCloud,
+  Download,
+  Eye,
+  ExternalLink,
+  Dumbbell,
+  Check,
 } from 'lucide-react';
 import { AppShell } from '@/components/app-shell';
 import { GlassCard } from '@/components/glass-card';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { conversations, llmModels, agents } from '@/lib/data';
-import type { ChatMessage } from '@/lib/types';
+import type { ChatMessage, ChatAttachment } from '@/lib/types';
 import { sendMessage } from "@/services/api/chat";
 import { getHistory } from "@/services/api/history";
 import { createTask } from "@/services/api/tasks";
 import { DailyRoutineCreator } from "@/components/daily-routine-creator";
-import { Dumbbell, Check } from "lucide-react";
 
 const suggestionPrompts = [
   { icon: 'Dumbbell', text: 'Create my daily 50 pushups workout routine' },
@@ -71,7 +80,14 @@ export default function ChatPage() {
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [stagedAttachments, setStagedAttachments] = useState<ChatAttachment[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [showAttachMenu, setShowAttachMenu] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
   // Scroll to bottom when new messages arrive or while typing
   useEffect(() => {
@@ -105,6 +121,7 @@ export default function ChatPage() {
     setMessages([]);
     setActiveConv(0);
     setInput('');
+    setStagedAttachments([]);
     setIsTyping(false);
   };
 
@@ -129,11 +146,92 @@ export default function ChatPage() {
 
     setMessages(restoredMessages);
     setInput('');
+    setStagedAttachments([]);
+  };
+
+  // Process uploaded pictures and documents
+  const processFiles = async (files: FileList | File[]) => {
+    const fileArray = Array.from(files);
+    if (fileArray.length === 0) return;
+
+    const newAttachments: ChatAttachment[] = [];
+
+    for (const file of fileArray) {
+      const isImg = file.type.startsWith("image/");
+      const id = `att-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+
+      try {
+        if (isImg) {
+          // Read image as Data URL for preview and base64 transmission
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+
+          newAttachments.push({
+            id,
+            name: file.name,
+            type: "image",
+            mimeType: file.type || "image/jpeg",
+            size: file.size,
+            url: dataUrl,
+            data: dataUrl,
+          });
+        } else {
+          // Check if file is readable text
+          const isText =
+            file.type.includes("text") ||
+            file.type.includes("json") ||
+            file.type.includes("csv") ||
+            file.type.includes("xml") ||
+            /\.(txt|md|markdown|csv|json|js|ts|tsx|jsx|py|html|css|yaml|yml|log|env)$/i.test(file.name);
+
+          let textSnippet = "";
+          let dataUrl = "";
+
+          if (isText && file.size < 5 * 1024 * 1024) {
+            textSnippet = await new Promise<string>((resolve) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve((reader.result as string) || "");
+              reader.onerror = () => resolve("");
+              reader.readAsText(file);
+            });
+          }
+
+          try {
+            dataUrl = URL.createObjectURL(file);
+          } catch {
+            dataUrl = "";
+          }
+
+          newAttachments.push({
+            id,
+            name: file.name,
+            type: "document",
+            mimeType: file.type || "application/octet-stream",
+            size: file.size,
+            url: dataUrl,
+            textSnippet: textSnippet ? textSnippet.slice(0, 15000) : undefined,
+          });
+        }
+      } catch (err) {
+        console.error("Error reading file:", file.name, err);
+      }
+    }
+
+    if (newAttachments.length > 0) {
+      setStagedAttachments((prev) => [...prev, ...newAttachments]);
+    }
   };
 
   const handleSend = async () => {
-    const message = input.trim();
-    if (!message || isTyping) return;
+    const rawMessage = input.trim();
+    if ((!rawMessage && stagedAttachments.length === 0) || isTyping) return;
+
+    const message = rawMessage || (stagedAttachments.length > 0 ? "Please analyze the attached files and provide insights." : "");
+    const currentAttachments = [...stagedAttachments];
 
     const userMsg: ChatMessage = {
       id: `msg-${Date.now()}`,
@@ -143,15 +241,22 @@ export default function ChatPage() {
         hour: 'numeric',
         minute: '2-digit',
       }),
+      attachments: currentAttachments.length > 0 ? currentAttachments : undefined,
     };
 
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
+    setStagedAttachments([]);
     setIsTyping(true);
 
     try {
-      // Pass selected agent ID to backend
-      const data = await sendMessage(message, conversationId, selectedAgent.id);
+      // Pass selected agent ID and attachments to backend
+      const data = await sendMessage(
+        message,
+        conversationId,
+        selectedAgent.id,
+        currentAttachments
+      );
 
       // Use the agent name that actually responded (from backend routing)
       const respondingAgentName = data.agent_name ?? selectedAgent.name;
@@ -326,8 +431,50 @@ export default function ChatPage() {
         </div>
 
         {/* Chat area */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col h-full">
-          <GlassCard hover={false} className="flex h-full min-h-0 flex-1 flex-col overflow-hidden p-0">
+        <div
+          className="flex min-h-0 min-w-0 flex-1 flex-col h-full"
+          onDragOver={(e: React.DragEvent<HTMLDivElement>) => {
+            e.preventDefault();
+            setIsDragging(true);
+          }}
+          onDragLeave={(e: React.DragEvent<HTMLDivElement>) => {
+            e.preventDefault();
+            setIsDragging(false);
+          }}
+          onDrop={(e: React.DragEvent<HTMLDivElement>) => {
+            e.preventDefault();
+            setIsDragging(false);
+            if (e.dataTransfer.files) {
+              processFiles(e.dataTransfer.files);
+            }
+          }}
+        >
+          <GlassCard
+            hover={false}
+            className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden p-0"
+          >
+            {/* Drag & Drop Visual Overlay */}
+            <AnimatePresence>
+              {isDragging && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/85 p-6 backdrop-blur-xl border-2 border-dashed border-sky-400/80 shadow-[0_0_50px_rgba(56,189,248,0.3)]"
+                >
+                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-sky-500/20 text-sky-400 shadow-xl shadow-sky-500/40 animate-bounce">
+                    <UploadCloud className="h-8 w-8" />
+                  </div>
+                  <p className="mt-4 text-base font-bold text-white tracking-wide">
+                    Drop your pictures or documents here
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground text-center max-w-sm">
+                    Upload images, PDFs, spreadsheets, notes, or code to communicate with RajOS AI
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             {/* Chat header — model + agent selectors */}
             <div className="flex items-center gap-3 border-b border-white/[0.06] p-4">
               {/* Model selector */}
@@ -485,7 +632,12 @@ export default function ChatPage() {
               ) : (
                 <div className="mx-auto max-w-3xl space-y-6">
                   {messages.map((msg) => (
-                    <MessageBubble key={msg.id} message={msg} agentName={selectedAgent.name} />
+                    <MessageBubble
+                      key={msg.id}
+                      message={msg}
+                      agentName={selectedAgent.name}
+                      onPreviewImage={(url) => setPreviewImage(url)}
+                    />
                   ))}
                   {isTyping && <TypingIndicator agentName={selectedAgent.name} />}
                   <div ref={messagesEndRef} />
@@ -512,33 +664,232 @@ export default function ChatPage() {
                   </div>
 
                   {/* Quick action shortcuts */}
-                  <div className="hidden sm:flex items-center gap-1.5">
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 rounded-lg border border-sky-400/30 bg-sky-400/10 px-2 py-0.5 text-[10px] font-medium text-sky-300 hover:bg-sky-400/20 hover:text-white transition-colors"
+                      title="Upload and communicate with pictures"
+                    >
+                      <ImageIcon className="h-3 w-3" />
+                      📷 Pictures
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => docInputRef.current?.click()}
+                      className="inline-flex items-center gap-1 rounded-lg border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-medium text-cyan-300 hover:bg-cyan-400/20 hover:text-white transition-colors"
+                      title="Upload and communicate with documents"
+                    >
+                      <FileText className="h-3 w-3" />
+                      📄 Documents
+                    </button>
                     <button
                       type="button"
                       onClick={() => setInput("Schedule my daily 50 pushups routine today")}
-                      className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] text-muted-foreground hover:border-sky-400/30 hover:text-white transition-colors"
+                      className="hidden sm:inline-flex rounded-lg border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] text-muted-foreground hover:border-sky-400/30 hover:text-white transition-colors"
                     >
                       ⚡ Pushups
                     </button>
                     <button
                       type="button"
                       onClick={() => setInput("Plan a 2-hour focused deep study block")}
-                      className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] text-muted-foreground hover:border-sky-400/30 hover:text-white transition-colors"
+                      className="hidden sm:inline-flex rounded-lg border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[10px] text-muted-foreground hover:border-sky-400/30 hover:text-white transition-colors"
                     >
                       📚 Study
                     </button>
                   </div>
                 </div>
 
+                {/* Hidden Multi-Format File Inputs */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.txt,.md,.markdown,.csv,.json,.docx,.doc,.xlsx,.xls,.py,.js,.ts,.tsx,.jsx,.html,.css,.xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) processFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+                <input
+                  ref={imageInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) processFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+                <input
+                  ref={docInputRef}
+                  type="file"
+                  multiple
+                  accept=".pdf,.txt,.md,.markdown,.csv,.json,.docx,.doc,.xlsx,.xls,.py,.js,.ts,.tsx,.jsx,.html,.css,.xml"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files) processFiles(e.target.files);
+                    e.target.value = "";
+                  }}
+                />
+
+                {/* Staged Attachments Preview Bar */}
+                <AnimatePresence>
+                  {stagedAttachments.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: "auto" }}
+                      exit={{ opacity: 0, y: 10, height: 0 }}
+                      className="mb-2.5 overflow-hidden rounded-2xl border border-sky-400/30 bg-gradient-to-r from-sky-950/40 via-black/80 to-cyan-950/40 p-2.5 shadow-[0_8px_24px_rgba(0,0,0,0.6)] backdrop-blur-xl"
+                    >
+                      <div className="mb-2 flex items-center justify-between px-1">
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-sky-300">
+                          <Sparkles className="h-3.5 w-3.5 text-sky-400" />
+                          <span>
+                            {stagedAttachments.length} file{stagedAttachments.length > 1 ? "s" : ""} attached for AI communication
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setStagedAttachments([])}
+                          className="text-[11px] text-muted-foreground hover:text-rose-400 transition-colors"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        {stagedAttachments.map((att) => (
+                          <div
+                            key={att.id}
+                            className="group relative flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] p-1.5 pr-2.5 transition-all hover:border-sky-400/40 hover:bg-white/[0.08]"
+                          >
+                            {att.type === "image" ? (
+                              <div
+                                onClick={() => setPreviewImage(att.url)}
+                                className="relative h-9 w-9 shrink-0 cursor-pointer overflow-hidden rounded-lg border border-white/10"
+                                title="Click to view full image"
+                              >
+                                <img
+                                  src={att.url}
+                                  alt={att.name}
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-400">
+                                <FileText className="h-4 w-4" />
+                              </div>
+                            )}
+
+                            <div className="min-w-0 max-w-[140px]">
+                              <p className="truncate text-xs font-medium text-white">{att.name}</p>
+                              <p className="text-[10px] text-muted-foreground">
+                                {(att.size / 1024).toFixed(0)} KB · {att.type === "image" ? "Picture" : "Doc"}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => setStagedAttachments((prev) => prev.filter((a) => a.id !== att.id))}
+                              className="ml-1 flex h-5 w-5 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-white/10 hover:text-white"
+                              title="Remove file"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 {/* 3D Elevated Typing Box */}
                 <div className="relative flex items-end gap-2 rounded-2xl border border-white/[0.12] bg-gradient-to-b from-white/[0.05] to-black/60 p-2.5 shadow-[0_4px_24px_rgba(0,0,0,0.5)] transition-all duration-200 focus-within:border-sky-400/50 focus-within:bg-black/80 focus-within:shadow-[0_0_25px_rgba(56,189,248,0.25)]">
-                  <button
-                    type="button"
-                    title="Attach file"
-                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-muted-foreground transition-all hover:bg-white/[0.08] hover:text-sky-300 active:scale-95"
-                  >
-                    <Paperclip className="h-4 w-4" />
-                  </button>
+                  {/* Attach Button with Popover */}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      title="Attach pictures & documents"
+                      onClick={() => setShowAttachMenu((prev) => !prev)}
+                      className={cn(
+                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all active:scale-95",
+                        showAttachMenu || stagedAttachments.length > 0
+                          ? "bg-sky-500/20 text-sky-300 border border-sky-400/40 shadow-[0_0_12px_rgba(56,189,248,0.25)]"
+                          : "text-muted-foreground hover:bg-white/[0.08] hover:text-sky-300"
+                      )}
+                    >
+                      <Paperclip className="h-4 w-4" />
+                    </button>
+
+                    <AnimatePresence>
+                      {showAttachMenu && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                          transition={{ duration: 0.15 }}
+                          className="absolute bottom-full left-0 mb-2 w-56 rounded-2xl border border-white/10 bg-black/95 p-2 shadow-2xl backdrop-blur-2xl z-50"
+                        >
+                          <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                            Upload & Communicate
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAttachMenu(false);
+                              imageInputRef.current?.click();
+                            }}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-medium text-white transition-colors hover:bg-white/10"
+                          >
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
+                              <ImageIcon className="h-3.5 w-3.5" />
+                            </div>
+                            <div>
+                              <div>Upload Pictures</div>
+                              <div className="text-[10px] text-muted-foreground">PNG, JPG, WebP, GIF</div>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAttachMenu(false);
+                              docInputRef.current?.click();
+                            }}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-medium text-white transition-colors hover:bg-white/10"
+                          >
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-cyan-500/20 text-cyan-400">
+                              <FileText className="h-3.5 w-3.5" />
+                            </div>
+                            <div>
+                              <div>Upload Documents</div>
+                              <div className="text-[10px] text-muted-foreground">PDF, TXT, MD, CSV, Docs</div>
+                            </div>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setShowAttachMenu(false);
+                              fileInputRef.current?.click();
+                            }}
+                            className="flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-xs font-medium text-white transition-colors hover:bg-white/10"
+                          >
+                            <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-violet-500/20 text-violet-400">
+                              <UploadCloud className="h-3.5 w-3.5" />
+                            </div>
+                            <div>
+                              <div>All Files / Drop</div>
+                              <div className="text-[10px] text-muted-foreground">Any supported file</div>
+                            </div>
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
 
                   <textarea
                     value={input}
@@ -564,10 +915,10 @@ export default function ChatPage() {
 
                   <Button
                     onClick={handleSend}
-                    disabled={!input.trim() || isTyping}
+                    disabled={(!input.trim() && stagedAttachments.length === 0) || isTyping}
                     className={cn(
                       "h-9 w-9 shrink-0 rounded-xl p-0 text-white transition-all duration-200 shadow-md",
-                      input.trim() && !isTyping
+                      (input.trim() || stagedAttachments.length > 0) && !isTyping
                         ? "bg-gradient-to-r from-sky-500 to-cyan-400 hover:from-sky-400 hover:to-cyan-300 shadow-sky-500/30 hover:scale-105 active:scale-95"
                         : "bg-white/10 text-muted-foreground opacity-50 cursor-not-allowed"
                     )}
@@ -578,13 +929,42 @@ export default function ChatPage() {
 
                 <div className="mt-2 flex items-center justify-between px-1 text-[11px] text-muted-foreground/70">
                   <span>Press <kbd className="rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-white/90">Enter ↵</kbd> to send</span>
-                  <span>RajOS AI Neural Engine · Continuous Context</span>
+                  <span>RajOS AI Neural Engine · Continuous Multimodal Context</span>
                 </div>
               </div>
             </div>
           </GlassCard>
         </div>
       </div>
+
+      {/* Fullscreen Image Lightbox Modal */}
+      <AnimatePresence>
+        {previewImage && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setPreviewImage(null)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4 backdrop-blur-md"
+          >
+            <div className="relative max-h-[90vh] max-w-[90vw]" onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                onClick={() => setPreviewImage(null)}
+                className="absolute -top-10 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-white transition-colors hover:bg-white/20"
+                title="Close preview"
+              >
+                <X className="h-4 w-4" />
+              </button>
+              <img
+                src={previewImage}
+                alt="Full preview"
+                className="max-h-[85vh] max-w-[90vw] rounded-2xl border border-white/20 object-contain shadow-2xl"
+              />
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </AppShell>
   );
 }
@@ -593,10 +973,21 @@ function CpuIcon() {
   return <Sparkles className="h-4 w-4 text-sky-400" />;
 }
 
-function MessageBubble({ message, agentName }: { message: ChatMessage; agentName: string }) {
+function MessageBubble({
+  message,
+  agentName,
+  onPreviewImage,
+}: {
+  message: ChatMessage;
+  agentName: string;
+  onPreviewImage?: (url: string) => void;
+}) {
   const isUser = message.role === 'user';
 
   if (isUser) {
+    const images = message.attachments?.filter((a) => a.type === "image") || [];
+    const docs = message.attachments?.filter((a) => a.type === "document") || [];
+
     return (
       <motion.div
         initial={{ opacity: 0, y: 12 }}
@@ -604,10 +995,75 @@ function MessageBubble({ message, agentName }: { message: ChatMessage; agentName
         transition={{ duration: 0.3 }}
         className="flex justify-end gap-3"
       >
-        <div className="max-w-[80%]">
-          <div className="rounded-2xl rounded-tr-sm bg-gradient-to-br from-sky-500/15 to-cyan-500/5 border border-sky-400/20 px-4 py-3">
-            <p className="text-sm leading-relaxed text-white">{message.content}</p>
-          </div>
+        <div className="max-w-[85%] space-y-2">
+          {/* Images Grid */}
+          {images.length > 0 && (
+            <div className={cn(
+              "grid gap-2 justify-end",
+              images.length === 1 ? "grid-cols-1" : images.length === 2 ? "grid-cols-2" : "grid-cols-3"
+            )}>
+              {images.map((img) => (
+                <div
+                  key={img.id}
+                  onClick={() => onPreviewImage?.(img.url)}
+                  className="group relative cursor-pointer overflow-hidden rounded-2xl border border-sky-400/30 bg-black/40 shadow-lg transition-transform hover:scale-[1.02]"
+                >
+                  <img
+                    src={img.url}
+                    alt={img.name}
+                    className="max-h-60 max-w-full rounded-2xl object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100 flex items-end p-2.5">
+                    <span className="truncate text-[11px] font-medium text-white flex items-center gap-1">
+                      <Eye className="h-3 w-3 text-sky-400" /> {img.name}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Documents List */}
+          {docs.length > 0 && (
+            <div className="space-y-1.5">
+              {docs.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/[0.05] px-3 py-2 text-left backdrop-blur-md"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-sky-500/20 text-sky-400">
+                      <FileText className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-xs font-semibold text-white">{doc.name}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        {(doc.size / 1024).toFixed(1)} KB · Document
+                      </p>
+                    </div>
+                  </div>
+                  {doc.url && (
+                    <a
+                      href={doc.url}
+                      download={doc.name}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-white/10 hover:text-white"
+                      title="Download document"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Text Message Bubble */}
+          {message.content && (
+            <div className="rounded-2xl rounded-tr-sm bg-gradient-to-br from-sky-500/20 to-cyan-500/10 border border-sky-400/30 px-4 py-3 shadow-[0_4px_16px_rgba(56,189,248,0.1)]">
+              <p className="text-sm leading-relaxed text-white whitespace-pre-wrap">{message.content}</p>
+            </div>
+          )}
+
           <div className="mt-1 flex justify-end">
             <span className="text-xs text-muted-foreground">{message.timestamp}</span>
           </div>
@@ -635,28 +1091,29 @@ function MessageBubble({ message, agentName }: { message: ChatMessage; agentName
             <span className="font-medium text-cyan-400">{message.agent ?? agentName}</span>
             {message.model && <span>· {message.model}</span>}
           </div>
-          <p className="text-sm leading-relaxed text-white/90">{message.content}</p>
+          <p className="text-sm leading-relaxed text-white/90 whitespace-pre-wrap">{message.content}</p>
 
-          {/* Sources */}
+          {/* Sources / Attached Files Analyzed */}
           {message.sources && message.sources.length > 0 && (
             <div className="mt-4 space-y-2 border-t border-white/[0.06] pt-3">
-              <p className="text-xs font-semibold text-muted-foreground">Sources retrieved</p>
-              {message.sources.map((src, i) => (
-                <div key={i} className="rounded-lg border border-white/[0.06] bg-white/[0.02] p-3">
-                  <div className="flex items-center gap-2">
-                    <BookOpen className="h-3.5 w-3.5 text-emerald-400" />
-                    <span className="text-sm font-medium text-white">{src.title}</span>
+              <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                <FileText className="h-3.5 w-3.5 text-cyan-400" /> Files & sources processed
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {message.sources.map((src, i) => (
+                  <div key={i} className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] px-2.5 py-1 text-xs text-white/90">
+                    <BookOpen className="h-3 w-3 text-emerald-400" />
+                    <span>{typeof src === 'string' ? src : (src as any).title}</span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">{src.snippet}</p>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
           )}
 
           {/* Memory used */}
           {message.memoryUsed && message.memoryUsed.length > 0 && (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-muted-foreground">Memory used:</span>
+              <span className="text-xs text-muted-foreground">Context:</span>
               {message.memoryUsed.map((m) => (
                 <span key={m} className="flex items-center gap-1 rounded-full border border-violet-400/20 bg-violet-400/5 px-2 py-0.5 text-xs text-violet-300">
                   <BrainCircuit className="h-3 w-3" /> {m}
