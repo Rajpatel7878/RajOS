@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
@@ -49,20 +49,21 @@ export default function PhoneLinkPage() {
     return () => clearInterval(timer);
   }, [resendCooldown]);
 
-  // Handle Send OTP
+  // Handle Send OTP (strictly 10 digits)
   const handleSendOTP = useCallback(async () => {
     setError(null);
     setSuccess(null);
     setDevOtpHint(null);
 
-    const cleanNumber = phone.replace(/[^\d+]/g, "");
-    if (!cleanNumber || cleanNumber.replace(/\D/g, "").length < 10) {
+    const cleanDigits = phone.replace(/\D/g, "").slice(0, 10);
+    if (cleanDigits.length !== 10) {
       setError("Please enter a valid 10-digit mobile number.");
       return;
     }
 
     setLoading(true);
     try {
+      const cleanNumber = `+91${cleanDigits}`;
       const data = await sendPhoneOTP(cleanNumber);
       setOtpSent(true);
       setResendCooldown(30);
@@ -97,9 +98,10 @@ export default function PhoneLinkPage() {
 
     setLoading(true);
     try {
-      const cleanNumber = phone.replace(/[^\d+]/g, "");
+      const cleanDigits = phone.replace(/\D/g, "").slice(0, 10);
+      const cleanNumber = `+91${cleanDigits}`;
       // Link the phone and activate task notifications
-      const data = await linkPhone(cleanNumber, otp.trim());
+      await linkPhone(cleanNumber, otp.trim());
 
       setSuccess(`Mobile number ${cleanNumber} connected! Task notifications enabled.`);
       setTimeout(() => router.push("/dashboard"), 700);
@@ -205,9 +207,17 @@ export default function PhoneLinkPage() {
           {!otpSent ? (
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="phone-input" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  Mobile Number
-                </Label>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="phone-input" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    Mobile Number
+                  </Label>
+                  <span className={cn(
+                    "font-mono text-[11px] transition-colors",
+                    phone.length === 10 ? "font-semibold text-emerald-400" : "text-muted-foreground/70"
+                  )}>
+                    {phone.length}/10 digits
+                  </span>
+                </div>
                 <div className="flex gap-2">
                   <span className="flex h-11 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 text-sm font-bold text-sky-400 select-none">
                     🇮🇳 +91
@@ -215,10 +225,14 @@ export default function PhoneLinkPage() {
                   <Input
                     id="phone-input"
                     type="tel"
+                    inputMode="numeric"
+                    maxLength={10}
+                    pattern="[0-9]{10}"
                     placeholder="Enter 10-digit phone number"
                     value={phone}
                     onChange={(e) => {
-                      setPhone(e.target.value);
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setPhone(digits);
                       setError(null);
                     }}
                     onKeyDown={(e) => {
@@ -232,15 +246,15 @@ export default function PhoneLinkPage() {
                   />
                 </div>
                 <p className="text-[11px] text-muted-foreground">
-                  A verification code will be sent to confirm your phone for notifications.
+                  Enter exactly 10 digits. A verification code will be sent to confirm your phone for notifications.
                 </p>
               </div>
 
               <Button
                 type="button"
                 onClick={handleSendOTP}
-                disabled={loading || !phone.trim()}
-                className="h-11 w-full gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-cyan-400 disabled:opacity-60 transition-all duration-200"
+                disabled={loading || phone.length !== 10}
+                className="h-11 w-full gap-2 rounded-xl bg-gradient-to-r from-sky-500 to-cyan-500 text-sm font-semibold text-white shadow-lg shadow-sky-500/20 hover:from-sky-400 hover:to-cyan-400 disabled:opacity-50 transition-all duration-200"
               >
                 {loading ? (
                   <>

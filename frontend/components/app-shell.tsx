@@ -9,8 +9,6 @@ import { GradientMesh } from "@/components/gradient-mesh";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const GUEST_FLAG = "rajos_guest";
-
 export function AppShell({
   children,
   contentClassName,
@@ -31,11 +29,6 @@ export function AppShell({
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      if (sessionStorage.getItem(GUEST_FLAG) === "1") {
-        if (cancelled) return;
-        setAuthed(true);
-        return;
-      }
       try {
         const token = localStorage.getItem("token");
         if (cancelled) return;

@@ -69,17 +69,6 @@ export default function LoginPage() {
     return () => clearInterval(interval);
   }, [resendCooldown]);
 
-  useEffect(() => {
-    if (sessionStorage.getItem("rajos_guest") === "1") {
-      router.push("/dashboard");
-    }
-  }, [router]);
-
-  const handleGuest = useCallback(() => {
-    sessionStorage.setItem("rajos_guest", "1");
-    router.push("/dashboard");
-  }, [router]);
-
   // Handle Email Password Login / Signup
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -126,24 +115,25 @@ export default function LoginPage() {
     }
   }, [router]);
 
-  // Phone: Send OTP
+  // Phone: Send OTP (strictly 10 digits)
   const handleSendOTP = useCallback(async () => {
     setError(null);
     setSuccess(null);
     setDevOtpHint(null);
 
-    const cleanNumber = phone.replace(/[^\d+]/g, "");
-    if (!cleanNumber || (cleanNumber.replace(/\D/g, "").length < 10)) {
+    const cleanDigits = phone.replace(/\D/g, "").slice(0, 10);
+    if (cleanDigits.length !== 10) {
       setError("Please enter a valid 10-digit mobile number.");
       return;
     }
 
     setPhoneLoading(true);
     try {
-      const data = await sendPhoneOTP(cleanNumber);
+      const formattedPhone = `+91${cleanDigits}`;
+      const data = await sendPhoneOTP(formattedPhone);
       setOtpSent(true);
       setResendCooldown(30); // 30s cooldown before next send
-      setSuccess(data.message || `Verification code dispatched to ${data.phone || cleanNumber}`);
+      setSuccess(data.message || `Verification code dispatched to ${data.phone || formattedPhone}`);
 
       if (data.dev_otp) {
         setDevOtpHint(data.dev_otp);
@@ -169,8 +159,9 @@ export default function LoginPage() {
 
     setPhoneLoading(true);
     try {
-      const cleanNumber = phone.replace(/[^\d+]/g, "");
-      const data = await verifyPhoneOTP(cleanNumber, otp.trim());
+      const cleanDigits = phone.replace(/\D/g, "").slice(0, 10);
+      const formattedPhone = `+91${cleanDigits}`;
+      const data = await verifyPhoneOTP(formattedPhone, otp.trim());
       setSuccess(data.message || "Phone verified! Entering RajOS...");
       setTimeout(() => router.push("/dashboard"), 600);
     } catch (err) {
@@ -306,9 +297,17 @@ export default function LoginPage() {
                 // Step 1: Phone number input
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone-number" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                      Mobile Number
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="phone-number" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        Mobile Number
+                      </Label>
+                      <span className={cn(
+                        "font-mono text-[11px] transition-colors",
+                        phone.length === 10 ? "font-semibold text-emerald-400" : "text-muted-foreground/70"
+                      )}>
+                        {phone.length}/10 digits
+                      </span>
+                    </div>
                     <div className="flex gap-2">
                       <span className="flex h-11 items-center justify-center rounded-xl border border-white/[0.08] bg-white/[0.03] px-3.5 text-sm font-bold text-sky-400 select-none">
                         🇮🇳 +91
@@ -316,11 +315,14 @@ export default function LoginPage() {
                       <Input
                         id="phone-number"
                         type="tel"
+                        inputMode="numeric"
+                        maxLength={10}
+                        pattern="[0-9]{10}"
                         placeholder="Enter 10-digit number"
                         value={phone}
                         onChange={(e) => {
-                          // Allow digits, spaces, dashes
-                          setPhone(e.target.value);
+                          const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                          setPhone(digits);
                           setError(null);
                         }}
                         onKeyDown={(e) => {
@@ -334,15 +336,15 @@ export default function LoginPage() {
                       />
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      A 6-digit cryptographic security code will be generated for your device.
+                      Enter exactly 10 digits. A 6-digit cryptographic security code will be generated for your device.
                     </p>
                   </div>
 
                   <Button
                     type="button"
                     onClick={handleSendOTP}
-                    disabled={phoneLoading || !phone.trim()}
-                    className="h-11 w-full gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-60 transition-all duration-200"
+                    disabled={phoneLoading || phone.length !== 10}
+                    className="h-11 w-full gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-sm font-semibold text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-400 hover:to-teal-400 disabled:opacity-50 transition-all duration-200"
                   >
                     {phoneLoading ? (
                       <>
@@ -562,46 +564,34 @@ export default function LoginPage() {
             </form>
           )}
 
-          {/* ── Social & Guest Divider ── */}
+          {/* ── Social Divider ── */}
           <div className="my-5 flex items-center gap-3">
             <div className="h-px flex-1 bg-white/[0.06]" />
             <span className="text-[11px] uppercase tracking-wider text-muted-foreground/60 font-semibold">
-              or connect with
+              or continue with
             </span>
             <div className="h-px flex-1 bg-white/[0.06]" />
           </div>
 
           {/* Google OAuth Button */}
-          <div className="space-y-2.5">
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={googleLoading || loading}
-              className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm font-medium text-white transition-colors hover:bg-white/[0.06] disabled:opacity-50"
-            >
-              {googleLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-              ) : (
-                <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                </svg>
-              )}
-              <span>{googleLoading ? "Connecting..." : "Continue with Google"}</span>
-            </button>
-
-            {/* Guest Sandbox Access */}
-            <button
-              type="button"
-              onClick={handleGuest}
-              className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-sky-400/20 bg-sky-400/[0.05] text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-400/10 hover:text-sky-200"
-            >
-              <Sparkles className="h-3.5 w-3.5" />
-              Explore Sandbox as Guest
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={handleGoogleLogin}
+            disabled={googleLoading || loading}
+            className="flex h-11 w-full items-center justify-center gap-3 rounded-xl border border-white/[0.08] bg-white/[0.03] text-sm font-medium text-white transition-colors hover:bg-white/[0.06] disabled:opacity-50"
+          >
+            {googleLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
+            ) : (
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+              </svg>
+            )}
+            <span>{googleLoading ? "Connecting..." : "Continue with Google"}</span>
+          </button>
         </div>
       </motion.div>
     </div>
