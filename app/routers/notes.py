@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.database.connection import SessionLocal
+from app.database.connection import get_db
 from app.models.note import Note
 from app.schemas.note_schema import NoteCreate
 from app.security.dependencies import get_current_user
@@ -10,13 +10,6 @@ from app.models.user import User
 
 router = APIRouter(prefix="/notes", tags=["Notes"])
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/")

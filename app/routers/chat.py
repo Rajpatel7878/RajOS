@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
-from app.database.connection import SessionLocal
+from app.database.connection import SessionLocal, get_db
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.user import User
@@ -23,13 +23,6 @@ router = APIRouter(
     tags=["Chat"]
 )
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/message")

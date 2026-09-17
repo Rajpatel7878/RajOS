@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.database.connection import SessionLocal
+from app.database.connection import get_db
 from app.models.task import Task
 from app.schemas.task_schema import TaskCreate
 from app.security.dependencies import get_current_user
@@ -10,13 +10,6 @@ from app.models.user import User
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/")

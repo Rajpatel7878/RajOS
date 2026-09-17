@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
-from app.database.connection import SessionLocal
+from app.database.connection import get_db
 from app.models.memory import Memory
 from app.schemas.memory_schema import (MemoryCreate, MemoryProcessRequest, MemorySearchRequest, MemoryStatsResponse)
 from app.security.dependencies import get_current_user
@@ -11,13 +11,6 @@ from app.memory.memory_engine import MemoryEngine
 
 router = APIRouter(prefix="/memory", tags=["Memory"])
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.post("/")

@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends
+from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
-from app.database.connection import SessionLocal
+from app.database.connection import get_db
 from app.models.task import Task
 from app.models.note import Note
 from app.models.memory import Memory
@@ -13,13 +14,6 @@ router = APIRouter(
     tags=["Dashboard"]
 )
 
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
 
 
 @router.get("/stats")
@@ -50,8 +44,6 @@ def dashboard_stats(
         "notes": total_notes,
         "memories": total_memories
     }
-
-from sqlalchemy import desc
 
 @router.get("/activity")
 def dashboard_activity(
