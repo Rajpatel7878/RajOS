@@ -1,10 +1,73 @@
+# ==============================================================
+# RajOS .gitignore
+# ==============================================================
+
+# Python virtual environments
 venv/
+.venv/
+env/
+.env/
+
+# Byte-compiled / optimized / DLL files
 __pycache__/
+*.py[cod]
+*$py.class
 *.pyc
+
+# Environment secrets — NEVER commit
 .env
-vector_db/
-*.sqlite3
+.env.local
+.env.*.local
+*.env
+
+# SQLite databases (local data — never commit)
 *.db
+*.sqlite
+*.sqlite3
+
+# Test & coverage output
+.coverage
+htmlcov/
+.pytest_cache/
+*.log
+
+# Vector database data
+vector_db/
+chroma_db/
+*.pkl
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# Backup & temp files
 *.bak
 *~
-vector_db/
+*.tmp
+*.patch
+
+# Node.js (Frontend)
+node_modules/
+Frontend/.next/
+Frontend/out/
+Frontend/build/
+.next/
+out/
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Editor & OS files
+.DS_Store
+Thumbs.db
+.vscode/settings.json
+*.swp
+*.swo
+
+# Test artifacts
+coverage/
+
+# Backend inside root (submodule or nested copy)
+# These are NOT ignored — the backend/ directory is tracked as a submodule.
+# Individual build artifacts within it are excluded by the submodule's own .gitignore.
