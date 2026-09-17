@@ -3,10 +3,11 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.database.connection import get_db
 from app.models.user import User
 
-SECRET_KEY = "rajOS_secret_key_12345"
+SECRET_KEY = settings.SECRET_KEY
 ALGORITHM = "HS256"
 
 security = HTTPBearer()
