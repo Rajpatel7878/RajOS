@@ -27,8 +27,17 @@ uvicorn==0.51.0
 
 email-validator
 
+# AI / LLM providers
+google-genai
 sentence-transformers
 
+# Vector database
 chromadb
 
+# Fuzzy search
 rapidfuzz
+
+# Testing
+pytest
+pytest-cov
+httpx
