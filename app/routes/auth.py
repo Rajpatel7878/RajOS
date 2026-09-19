@@ -5,6 +5,7 @@ from passlib.context import CryptContext
 from app.database.connection import get_db
 from app.models.user import User
 from app.security.jwt import create_access_token
+from app.security.dependencies import get_current_user
 from app.schemas.user import UserCreate, UserLogin, UserResponse
 
 router = APIRouter()
@@ -65,5 +66,14 @@ def login(user: UserLogin, db: Session = Depends(get_db)):
 
     return {
         "access_token": create_access_token({"sub": db_user.email}),
+        "token_type": "bearer"
+    }
+
+
+@router.post("/refresh")
+def refresh(current_user: User = Depends(get_current_user)):
+    """Issue a fresh access token for an authenticated user."""
+    return {
+        "access_token": create_access_token({"sub": current_user.email}),
         "token_type": "bearer"
     }
