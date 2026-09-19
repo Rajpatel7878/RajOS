@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, Boolean
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Boolean, DateTime
 from sqlalchemy.orm import relationship
 
 from app.database.connection import Base
@@ -29,6 +30,19 @@ class User(Base):
     notifications_enabled = Column(
         Boolean,
         default=True
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        nullable=False
+    )
+
+    updated_at = Column(
+        DateTime,
+        default=datetime.utcnow,
+        onupdate=datetime.utcnow,
+        nullable=False
     )
 
     tasks = relationship(
