@@ -116,6 +116,21 @@ class TestLogin:
         assert resp.status_code == 404
 
 
+class TestTokenRefresh:
+    """POST /refresh — token renewal."""
+
+    def test_refresh_token_success(self, client, auth_headers):
+        resp = client.post("/refresh", headers=auth_headers)
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "access_token" in data
+        assert data["token_type"] == "bearer"
+
+    def test_refresh_token_unauthenticated_fails(self, client):
+        resp = client.post("/refresh")
+        assert resp.status_code in (401, 403)
+
+
 class TestProtectedRoute:
     """Protected routes must reject unauthenticated requests with 403."""
 
