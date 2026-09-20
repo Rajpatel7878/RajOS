@@ -181,6 +181,82 @@ export async function sendMessage(
   };
 }
 
+export async function listConversations(includeArchived = false) {
+  const token = localStorage.getItem("token") || "";
+  try {
+    const res = await fetch(`${API}/chat/conversations?include_archived=${includeArchived}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fall through to legacy history
+  }
+  return await getHistory();
+}
+
+export async function getConversationDetail(id: number) {
+  const token = localStorage.getItem("token") || "";
+  try {
+    const res = await fetch(`${API}/chat/conversations/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+export async function renameConversation(id: number, title: string) {
+  const token = localStorage.getItem("token") || "";
+  try {
+    const res = await fetch(`${API}/chat/conversations/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ title }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+export async function archiveConversation(id: number, archived = true) {
+  const token = localStorage.getItem("token") || "";
+  try {
+    const res = await fetch(`${API}/chat/conversations/${id}/archive`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ archived }),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+export async function deleteConversation(id: number) {
+  const token = localStorage.getItem("token") || "";
+  try {
+    const res = await fetch(`${API}/chat/conversations/${id}`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export async function getHistory() {
   const token = localStorage.getItem("token") || "";
 
@@ -206,6 +282,18 @@ export async function getHistory() {
 }
 
 export async function searchConversations(query: string) {
+  const token = localStorage.getItem("token") || "";
+  if (query.trim()) {
+    try {
+      const res = await fetch(`${API}/chat/search?q=${encodeURIComponent(query.trim())}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) return await res.json();
+    } catch {
+      // Fall through
+    }
+  }
+
   const data = await getHistory();
   if (!query.trim()) return data;
 
