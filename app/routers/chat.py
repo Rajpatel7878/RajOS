@@ -22,6 +22,7 @@ from app.services.context_builder import ContextBuilder
 from app.services.conversation_service import ConversationService
 from app.conversation.conversation_manager import ConversationManager
 from app.memory.memory_engine import MemoryEngine
+from app.memory.memory_service import memory_service
 
 
 router = APIRouter(
@@ -83,15 +84,33 @@ def send_message(
     full_context = context_builder.build(
         db,
         user.id,
+        query_text=request.message,
         memory_data=[],
         conversation_history=history_payload
     )
 
-    memory_engine = MemoryEngine()
-    if profile_name:
-        memory_data = []
-    else:
-        memory_data = memory_engine.process_memory(request.message)
+    # 4b. Failure-isolated Memory 2.0 processing (explicit intent parsing & candidate extraction)
+    memory_data = []
+    try:
+        handled, msg, mem_obj = memory_service.parse_and_handle_explicit_intent(
+            db=db,
+            user_id=user.id,
+            user_message=request.message
+        )
+        if handled and mem_obj:
+            memory_data.append({"key": mem_obj.key, "value": mem_obj.value, "status": "explicit_handled"})
+        else:
+            extracted = memory_service.extract_memories_from_conversation(
+                db=db,
+                user_id=user.id,
+                user_message=request.message
+            )
+            for item in extracted:
+                mem_item = item.get("memory")
+                if mem_item:
+                    memory_data.append({"key": mem_item.key, "value": mem_item.value, "status": item.get("status")})
+    except Exception as e:
+        print(f"[ChatRouter] Failure processing Memory 2.0 (isolated): {e}")
 
     # 5. Generate AI response via Phase 2 LLM Core
     conversation_manager = ConversationManager()
