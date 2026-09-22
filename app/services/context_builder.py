@@ -1,10 +1,11 @@
 from app.services.profile_query import ProfileQuery
 from app.services.preference_query import PreferenceQuery
 from app.memory.memory_service import memory_service
+from app.rag.knowledge_service import knowledge_service
 
 
 class ContextBuilder:
-    """Builds unified LLM prompt context with context-window limits and Phase 4 Memory 2.0 integration."""
+    """Builds unified LLM prompt context with context-window limits, Memory 2.0, and Knowledge RAG 2.0 integration."""
 
     def __init__(self):
         self.profile_query = ProfileQuery()
@@ -31,7 +32,7 @@ class ContextBuilder:
             user_id
         )
 
-        # Retrieve isolated memories strictly for user_id with failure isolation
+        # 1. Retrieve isolated Memory 2.0 context for user_id with failure isolation
         user_memories = []
         try:
             user_memories = memory_service.get_relevant_memories_for_context(
@@ -43,7 +44,21 @@ class ContextBuilder:
         except Exception as e:
             print(f"[ContextBuilder] Failure retrieving memories (isolated): {e}")
 
-        # Format conversation history: cap at last 20 messages, preserve role formatting
+        # 2. Retrieve isolated Knowledge RAG 2.0 context for user_id with failure isolation
+        rag_hits = []
+        rag_context_prompt = ""
+        rag_citations = []
+        try:
+            if query_text:
+                rag_hits, rag_context_prompt, rag_citations = knowledge_service.build_knowledge_context(
+                    db=db,
+                    user_id=user_id,
+                    query_text=query_text
+                )
+        except Exception as e:
+            print(f"[ContextBuilder] Failure retrieving knowledge RAG context (isolated): {e}")
+
+        # 3. Format conversation history: cap at last 20 messages, preserve role formatting
         formatted_history = []
         if conversation_history:
             recent_items = conversation_history[-20:]
@@ -65,7 +80,9 @@ class ContextBuilder:
             "memory": user_memories if user_memories else (memory_data or []),
             "conversation_history": formatted_history,
             "semantic_memory": user_memories,
-            "rag_documents": [],
+            "rag_documents": rag_hits,
+            "rag_context_prompt": rag_context_prompt,
+            "rag_sources": rag_citations,
             "tool_context": []
         }
 

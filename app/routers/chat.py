@@ -150,7 +150,8 @@ def send_message(
         "response": ai_reply["response"],
         "memory": ai_reply.get("memory", []),
         "conversation_context": ai_reply.get("conversation_context"),
-        "agent": ai_reply.get("agent")
+        "agent": ai_reply.get("agent"),
+        "sources": full_context.get("rag_sources", [])
     }
 
 

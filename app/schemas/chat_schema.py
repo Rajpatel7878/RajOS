@@ -16,6 +16,7 @@ class ChatResponse(BaseModel):
     memory: Optional[List[Any]] = None
     conversation_context: Optional[Any] = None
     agent: Optional[Any] = None
+    sources: Optional[List[Dict[str, Any]]] = None
 
 
 class MessageRead(BaseModel):

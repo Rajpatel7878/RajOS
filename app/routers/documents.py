@@ -1,16 +1,19 @@
-from fastapi import APIRouter, Depends
+from typing import List, Optional
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
-from app.database.connection import SessionLocal
-from app.models.document import Document
-from app.schemas.document_schema import DocumentCreate
+from app.database.connection import get_db
 from app.models.user import User
 from app.security.dependencies import get_current_user
-
-from app.rag.document_processor import process_document
-from app.embeddings.embedding_service import embedding_service
-from app.vector_db.vector_service import vector_service
-
+from app.rag.knowledge_service import knowledge_service
+from app.schemas.document_schema import (
+    DocumentCreate,
+    DocumentUpdate,
+    DocumentResponse,
+    SearchRequest,
+    SearchResponse,
+    KnowledgeStatsResponse
+)
 
 router = APIRouter(
     prefix="/documents",
@@ -18,147 +21,88 @@ router = APIRouter(
 )
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-@router.post("/")
-def upload_document(
-    document: DocumentCreate,
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
-
-    new_document = Document(
-        filename=document.filename,
-        content=document.content,
-        user_id=user.id
-    )
-
-    db.add(new_document)
-    db.commit()
-    db.refresh(new_document)
-
-
-    processed = process_document(
-        document.content
-    )
-
-
-    for index, chunk in enumerate(
-        processed["chunks"]
-    ):
-
-        embedding = embedding_service.generate_embedding(
-            chunk
-        )
-
-        vector_service.add_vector(
-            doc_id=f"{new_document.id}_{index}",
-            text=chunk,
-            embedding=embedding
-        )
-
-
-    return {
-        "message": "Document processed successfully",
-        "document_id": new_document.id,
-        "chunks": processed["total_chunks"]
-    }
-
-
-@router.get("/")
+@router.get("/", response_model=List[DocumentResponse])
 def get_documents(
+    status_filter: Optional[str] = Query(None, alias="status", description="Filter by status: ready, processing, failed"),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-
-    return db.query(Document).filter(
-        Document.user_id == user.id
-    ).all()
+    """Lists all knowledge documents owned by the authenticated user."""
+    return knowledge_service.get_documents(db=db, user_id=user.id, status=status_filter)
 
 
-from app.schemas.document_schema import SearchRequest
-
-
-
-@router.post("/search")
-def search_documents(
-    request: SearchRequest,
+@router.get("/stats", response_model=KnowledgeStatsResponse)
+def get_knowledge_stats(
+    db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-
-    query_embedding = embedding_service.generate_embedding(
-        request.query
-    )
-
-    results = vector_service.search_vectors(
-        query_embedding
-    )
-
-    return {
-        "results": results
-    }
-
-from fastapi import HTTPException
-from app.schemas.document_schema import DocumentUpdate
+    """Retrieves knowledge base statistics for authenticated user."""
+    return knowledge_service.get_knowledge_stats(db=db, user_id=user.id)
 
 
-@router.get("/{document_id}")
+@router.get("/{document_id}", response_model=DocumentResponse)
 def get_document(
     document_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    document = db.query(Document).filter(
-        Document.id == document_id,
-        Document.user_id == user.id
-    ).first()
-
-    if not document:
+    """Retrieves a single document by ID with security scoping."""
+    doc = knowledge_service.get_document_by_id(db=db, user_id=user.id, document_id=document_id)
+    if not doc:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found"
         )
+    return doc
 
-    return document
 
-
-@router.put("/{document_id}")
-def update_document(
-    document_id: int,
-    request: DocumentUpdate,
+@router.post("/", response_model=DocumentResponse, status_code=status.HTTP_201_CREATED)
+def upload_document(
+    doc_in: DocumentCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    document = db.query(Document).filter(
-        Document.id == document_id,
-        Document.user_id == user.id
-    ).first()
+    """Uploads, processes, chunks, embeds, and indexes a new document."""
+    res = knowledge_service.ingest_document(
+        db=db,
+        user_id=user.id,
+        filename=doc_in.filename,
+        content=doc_in.content,
+        title=doc_in.title,
+        mime_type=doc_in.mime_type or "text/plain"
+    )
 
+    document = res.get("document")
     if not document:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=res.get("error", "Failed to process document")
+        )
+    return document
+
+
+@router.put("/{document_id}", response_model=DocumentResponse)
+def update_document(
+    document_id: int,
+    doc_in: DocumentUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Updates an existing document and re-indexes vector chunks if content changed."""
+    updated = knowledge_service.update_document(
+        db=db,
+        user_id=user.id,
+        document_id=document_id,
+        filename=doc_in.filename,
+        title=doc_in.title,
+        content=doc_in.content
+    )
+    if not updated:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found"
         )
-
-    if request.filename is not None:
-        document.filename = request.filename
-
-    if request.content is not None:
-        document.content = request.content
-
-    db.commit()
-    db.refresh(document)
-
-    return {
-        "message": "Document updated successfully",
-        "document": document
-    }
+    return updated
 
 
 @router.delete("/{document_id}")
@@ -167,20 +111,42 @@ def delete_document(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    document = db.query(Document).filter(
-        Document.id == document_id,
-        Document.user_id == user.id
-    ).first()
-
-    if not document:
+    """Deletes a document and purges all associated vector chunks from ChromaDB."""
+    success = knowledge_service.delete_document(db=db, user_id=user.id, document_id=document_id)
+    if not success:
         raise HTTPException(
-            status_code=404,
+            status_code=status.HTTP_404_NOT_FOUND,
             detail="Document not found"
         )
+    return {"status": "success", "message": "Document and associated vectors deleted successfully", "id": document_id}
 
-    db.delete(document)
-    db.commit()
+
+@router.post("/search", response_model=SearchResponse)
+def search_documents(
+    request: SearchRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Performs hybrid vector + keyword knowledge search with relevance thresholding."""
+    hits = knowledge_service.search_knowledge(
+        db=db,
+        user_id=user.id,
+        query_text=request.query,
+        limit=request.limit or 5
+    )
+
+    results = []
+    for hit in hits:
+        results.append({
+            "chunk_id": str(hit.get("chunk_id", "")),
+            "document_id": int(hit.get("document_id", 0)),
+            "filename": str(hit.get("filename", "")),
+            "heading": str(hit.get("heading", "General")),
+            "content": str(hit.get("content", "")),
+            "score": round(float(hit.get("score", 0.0)), 4)
+        })
 
     return {
-        "message": "Document deleted successfully"
+        "query": request.query,
+        "results": results
     }
