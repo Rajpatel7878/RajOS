@@ -47,6 +47,7 @@ export async function POST(request: Request) {
           conversation_id: conversationId,
           agent_id: agentId,
           attachments,
+          confirmation: body.confirmation || null,
         }),
         signal: AbortSignal.timeout(3500),
       });

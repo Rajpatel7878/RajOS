@@ -226,6 +226,35 @@ export default function ChatPage() {
     }
   };
 
+  const handleConfirmAction = async (tool_name: string, args: Record<string, any>, confirmed: boolean) => {
+    setIsTyping(true);
+    try {
+      const data = await sendMessage(
+        confirmed ? `Confirm execution of ${tool_name}` : `Cancel execution of ${tool_name}`,
+        conversationId,
+        selectedAgent.id,
+        [],
+        { tool_name, arguments: args, confirmed }
+      );
+
+      const aiMsg: ChatMessage = {
+        id: `msg-${Date.now() + 1}`,
+        role: 'assistant',
+        content: data.response ?? 'Action confirmation processed.',
+        timestamp: new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }),
+        model: selectedModel.name,
+        agent: selectedAgent.name,
+        toolExecutions: data.tool_executions ?? [],
+      };
+
+      setMessages((prev) => [...prev, aiMsg]);
+    } catch (err) {
+      console.error('Confirmation error:', err);
+    } finally {
+      setIsTyping(false);
+    }
+  };
+
   const handleSend = async () => {
     const rawMessage = input.trim();
     if ((!rawMessage && stagedAttachments.length === 0) || isTyping) return;
@@ -278,6 +307,9 @@ export default function ChatPage() {
           : [],
         memoryUsed: data.memory_used ?? [],
         suggestedTasks: (data as any).suggested_tasks ?? [],
+        toolExecutions: data.tool_executions ?? [],
+        requiresConfirmation: data.requires_confirmation,
+        confirmationDetails: data.confirmation_details,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
@@ -637,6 +669,7 @@ export default function ChatPage() {
                       message={msg}
                       agentName={selectedAgent.name}
                       onPreviewImage={(url) => setPreviewImage(url)}
+                      onConfirmAction={handleConfirmAction}
                     />
                   ))}
                   {isTyping && <TypingIndicator agentName={selectedAgent.name} />}
@@ -977,10 +1010,12 @@ function MessageBubble({
   message,
   agentName,
   onPreviewImage,
+  onConfirmAction,
 }: {
   message: ChatMessage;
   agentName: string;
   onPreviewImage?: (url: string) => void;
+  onConfirmAction?: (tool_name: string, args: Record<string, any>, confirmed: boolean) => void;
 }) {
   const isUser = message.role === 'user';
 
@@ -1134,6 +1169,52 @@ function MessageBubble({
               {message.suggestedTasks.map((t, idx) => (
                 <TaskAddCard key={idx} task={t} />
               ))}
+            </div>
+          )}
+
+          {/* Executed Tools Badges */}
+          {message.toolExecutions && message.toolExecutions.length > 0 && (
+            <div className="mt-3 space-y-1.5 border-t border-white/[0.06] pt-2">
+              <p className="text-[11px] font-semibold text-sky-400 flex items-center gap-1">
+                <Zap className="h-3 w-3 text-sky-400" /> Executed Registered Tools
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {message.toolExecutions.map((t, idx) => (
+                  <span key={idx} className="inline-flex items-center gap-1 rounded-md border border-sky-400/30 bg-sky-500/10 px-2.5 py-1 text-[11px] font-mono text-sky-300">
+                    ⚡ {t.tool_name}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Destructive Action Confirmation Card */}
+          {message.requiresConfirmation && message.confirmationDetails && (
+            <div className="mt-4 rounded-xl border border-amber-400/40 bg-amber-500/10 p-3.5 backdrop-blur-md space-y-2.5 shadow-[0_0_15px_rgba(251,191,36,0.15)]">
+              <div className="flex items-center gap-2 text-amber-300 font-semibold text-xs">
+                <AlertCircle className="h-4 w-4 text-amber-400 shrink-0" />
+                <span>Confirmation Required: {message.confirmationDetails.tool_name}</span>
+              </div>
+              <p className="text-xs text-amber-200/90">
+                RajOS wants to execute destructive tool <code className="bg-black/40 px-1 py-0.5 rounded font-mono text-amber-300">{message.confirmationDetails.tool_name}</code>.
+              </p>
+              <div className="flex items-center gap-2 pt-1">
+                <Button
+                  size="sm"
+                  onClick={() => onConfirmAction?.(message.confirmationDetails!.tool_name, message.confirmationDetails!.arguments, true)}
+                  className="bg-amber-500 hover:bg-amber-600 text-black font-semibold text-xs h-7 px-3 rounded-lg"
+                >
+                  <Check className="h-3.5 w-3.5 mr-1" /> Confirm Action
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onConfirmAction?.(message.confirmationDetails!.tool_name, message.confirmationDetails!.arguments, false)}
+                  className="border-white/20 text-white hover:bg-white/10 text-xs h-7 px-3 rounded-lg"
+                >
+                  <X className="h-3.5 w-3.5 mr-1" /> Cancel
+                </Button>
+              </div>
             </div>
           )}
         </div>

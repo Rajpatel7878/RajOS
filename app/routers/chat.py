@@ -21,7 +21,6 @@ from app.services.preference_manager import PreferenceManager
 from app.services.context_builder import ContextBuilder
 from app.services.conversation_service import ConversationService
 from app.conversation.conversation_manager import ConversationManager
-from app.memory.memory_engine import MemoryEngine
 from app.memory.memory_service import memory_service
 
 
@@ -39,7 +38,7 @@ def send_message(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    """Send a chat message, build multi-turn context, and return AI reply."""
+    """Send a chat message, execute tool loops if required, and return AI reply."""
 
     # 1. Resolve or create conversation
     conversation = None
@@ -73,7 +72,7 @@ def send_message(
         preference_manager = PreferenceManager()
         preference_manager.save_preference(db, user.id, key, val)
 
-    # 4. Context building with multi-turn history (user + assistant) capped at recent 20 messages
+    # 4. Context building with multi-turn history capped at recent 20 messages
     recent_messages = conversation_service.get_recent_history(db, conversation.id, limit=20)
     history_payload = [
         {"role": msg.role, "content": msg.content}
@@ -88,8 +87,9 @@ def send_message(
         memory_data=[],
         conversation_history=history_payload
     )
+    full_context["conversation_id"] = str(conversation.id)
 
-    # 4b. Failure-isolated Memory 2.0 processing (explicit intent parsing & candidate extraction)
+    # 4b. Memory 2.0 processing
     memory_data = []
     try:
         handled, msg, mem_obj = memory_service.parse_and_handle_explicit_intent(
@@ -112,7 +112,7 @@ def send_message(
     except Exception as e:
         print(f"[ChatRouter] Failure processing Memory 2.0 (isolated): {e}")
 
-    # 5. Generate AI response via Phase 2 LLM Core
+    # 5. Generate AI response with Tool Calling 2.0
     conversation_manager = ConversationManager()
     conversation_data = conversation_manager.chat(
         str(user.id),
@@ -128,7 +128,12 @@ def send_message(
             "agent": {}
         }
     else:
-        ai_reply = ai_response(request.message, user, full_context)
+        ai_reply = ai_response(
+            message=request.message,
+            user=user,
+            context=full_context,
+            confirmation=request.confirmation
+        )
 
     ai_reply["memory"] = memory_data
     ai_reply["conversation_context"] = conversation_data
@@ -151,7 +156,10 @@ def send_message(
         "memory": ai_reply.get("memory", []),
         "conversation_context": ai_reply.get("conversation_context"),
         "agent": ai_reply.get("agent"),
-        "sources": full_context.get("rag_sources", [])
+        "sources": full_context.get("rag_sources", []),
+        "requires_confirmation": ai_reply.get("requires_confirmation"),
+        "confirmation_details": ai_reply.get("confirmation_details"),
+        "tool_executions": ai_reply.get("tool_executions")
     }
 
 
@@ -177,6 +185,22 @@ def list_conversations(
     )
 
 
+@router.get("/search", response_model=List[ConversationRead])
+def search_conversations(
+    q: str = Query("", description="Search query string"),
+    limit: int = Query(20, ge=1, le=100),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Search user's conversations by title or message content."""
+    return conversation_service.search_conversations(
+        db,
+        user.id,
+        query_text=q,
+        limit=limit
+    )
+
+
 @router.get("/conversations/{conversation_id}", response_model=ConversationDetail)
 def get_conversation_detail(
     conversation_id: int,
@@ -198,12 +222,7 @@ def rename_conversation(
     user: User = Depends(get_current_user)
 ):
     """Manually rename a conversation title."""
-    conversation = conversation_service.rename_conversation(
-        db,
-        conversation_id,
-        user.id,
-        payload.title
-    )
+    conversation = conversation_service.rename_conversation(db, conversation_id, user.id, payload.title)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conversation
@@ -216,74 +235,21 @@ def archive_conversation(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    """Archive or restore a conversation."""
-    conversation = conversation_service.archive_conversation(
-        db,
-        conversation_id,
-        user.id,
-        archived=payload.archived
-    )
+    """Archive or unarchive a conversation."""
+    conversation = conversation_service.archive_conversation(db, conversation_id, user.id, payload.archived)
     if not conversation:
         raise HTTPException(status_code=404, detail="Conversation not found")
     return conversation
 
 
 @router.delete("/conversations/{conversation_id}")
-def delete_single_conversation(
+def delete_conversation(
     conversation_id: int,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user)
 ):
-    """Delete a single conversation and its message history."""
-    deleted = conversation_service.delete_conversation(db, conversation_id, user.id)
-    if not deleted:
+    """Permanently delete a conversation and its messages."""
+    success = conversation_service.delete_conversation(db, conversation_id, user.id)
+    if not success:
         raise HTTPException(status_code=404, detail="Conversation not found")
-    return {"message": "Conversation deleted successfully", "id": conversation_id}
-
-
-@router.get("/search", response_model=List[ConversationRead])
-def search_conversations(
-    q: str = Query(..., min_length=1),
-    limit: int = Query(20, ge=1, le=50),
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
-    """Search user's conversations by title or message content."""
-    return conversation_service.search_conversations(db, user.id, q, limit=limit)
-
-
-# ------------------------------------------------------------------
-# Backward-Compatibility Endpoints
-# ------------------------------------------------------------------
-
-@router.get("/history")
-def chat_history(
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
-    """Legacy endpoint returning nested list of conversations and messages."""
-    conversations = conversation_service.list_conversations(db, user.id, include_archived=True)
-    result = []
-    for conv in conversations:
-        result.append({
-            "conversation_id": conv.id,
-            "title": conv.title,
-            "archived": conv.archived,
-            "messages": [
-                {"role": msg.role, "content": msg.content}
-                for msg in conv.messages
-            ]
-        })
-    return result
-
-
-@router.delete("/history")
-def delete_history(
-    db: Session = Depends(get_db),
-    user: User = Depends(get_current_user)
-):
-    """Legacy endpoint clearing all conversations for the authenticated user."""
-    conversations = conversation_service.list_conversations(db, user.id, include_archived=True)
-    for conv in conversations:
-        conversation_service.delete_conversation(db, conv.id, user.id)
-    return {"message": "Chat history deleted"}
+    return {"status": "deleted", "conversation_id": conversation_id}

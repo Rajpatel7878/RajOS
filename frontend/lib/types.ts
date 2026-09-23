@@ -92,6 +92,18 @@ export interface ChatMessage {
     due_date?: string;
   }>;
   attachments?: ChatAttachment[];
+  toolExecutions?: Array<{
+    tool_name: string;
+    arguments: Record<string, any>;
+    result: any;
+  }>;
+  requiresConfirmation?: boolean;
+  confirmationDetails?: {
+    tool_name: string;
+    arguments: Record<string, any>;
+    confirmation_token?: string;
+    message?: string;
+  };
 }
 
 export interface Conversation {

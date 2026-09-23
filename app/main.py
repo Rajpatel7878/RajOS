@@ -69,7 +69,7 @@ app.include_router(user_router)
 # ------------------------------------------------------------------
 # Routers — core features
 # ------------------------------------------------------------------
-from app.routers import tasks, notes, memory, assistant, chat, documents, productivity, dashboard  # noqa: E402
+from app.routers import tasks, notes, memory, assistant, chat, documents, productivity, dashboard, tools  # noqa: E402
 
 app.include_router(tasks.router)
 app.include_router(notes.router)
@@ -79,6 +79,7 @@ app.include_router(chat.router)
 app.include_router(documents.router)
 app.include_router(productivity.router)
 app.include_router(dashboard.router)
+app.include_router(tools.router)
 
 # ------------------------------------------------------------------
 # Routers — advanced features
@@ -114,11 +115,7 @@ def root():
 
 @app.get("/health", tags=["Status"])
 def health():
-    """Health check — always returns healthy if the process is running.
-
-    Does NOT fail when external providers (LLM, vector DB) are unavailable,
-    to avoid false-positive service outages in monitoring systems.
-    """
+    """Health check — always returns healthy if the process is running."""
     return {
         "status": "healthy",
         "app": settings.APP_NAME,

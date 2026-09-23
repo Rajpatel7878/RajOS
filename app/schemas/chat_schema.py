@@ -8,6 +8,7 @@ class ChatRequest(BaseModel):
     conversation_id: Optional[int] = None
     agent_id: Optional[str] = None  # 'atlas', 'nova', 'sage', 'echo', 'pulse'
     attachments: Optional[List[Dict[str, Any]]] = None
+    confirmation: Optional[Dict[str, Any]] = None
 
 
 class ChatResponse(BaseModel):
@@ -17,6 +18,9 @@ class ChatResponse(BaseModel):
     conversation_context: Optional[Any] = None
     agent: Optional[Any] = None
     sources: Optional[List[Dict[str, Any]]] = None
+    requires_confirmation: Optional[bool] = None
+    confirmation_details: Optional[Dict[str, Any]] = None
+    tool_executions: Optional[List[Dict[str, Any]]] = None
 
 
 class MessageRead(BaseModel):

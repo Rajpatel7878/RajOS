@@ -8,6 +8,18 @@ export interface ChatResponse {
   conversation_id?: number;
   sources?: string[];
   memory_used?: string[];
+  requires_confirmation?: boolean;
+  confirmation_details?: {
+    tool_name: string;
+    arguments: Record<string, any>;
+    confirmation_token?: string;
+    message?: string;
+  };
+  tool_executions?: Array<{
+    tool_name: string;
+    arguments: Record<string, any>;
+    result: any;
+  }>;
   suggested_tasks?: Array<{
     title: string;
     description: string;
@@ -31,7 +43,8 @@ export async function sendMessage(
   message: string,
   conversationId: number | null = null,
   agentId: string | null = null,
-  attachments: ChatAttachmentPayload[] = []
+  attachments: ChatAttachmentPayload[] = [],
+  confirmation: Record<string, any> | null = null
 ): Promise<ChatResponse> {
   const token = localStorage.getItem("token") || "";
 
@@ -48,6 +61,7 @@ export async function sendMessage(
         conversation_id: conversationId,
         agent_id: agentId,
         attachments,
+        confirmation,
       }),
     });
 
@@ -71,6 +85,7 @@ export async function sendMessage(
         conversation_id: conversationId,
         agent_id: agentId,
         attachments,
+        confirmation,
       }),
     });
 
