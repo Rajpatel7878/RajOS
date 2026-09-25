@@ -132,7 +132,9 @@ def send_message(
             message=request.message,
             user=user,
             context=full_context,
-            confirmation=request.confirmation
+            confirmation=request.confirmation,
+            agent_id=request.agent_id,
+            db=db
         )
 
     ai_reply["memory"] = memory_data

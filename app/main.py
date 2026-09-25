@@ -52,6 +52,7 @@ from app.models.conversation import Conversation  # noqa: F401, E402
 from app.models.message import Message  # noqa: F401, E402
 from app.models.preference import UserPreference  # noqa: F401, E402
 from app.automation.automation_models import Automation  # noqa: F401, E402
+from app.models.agent import AgentDefinitionModel, AgentRunModel  # noqa: F401, E402
 
 # Create tables for any new models (existing data is preserved)
 Base.metadata.create_all(bind=engine)
@@ -69,7 +70,7 @@ app.include_router(user_router)
 # ------------------------------------------------------------------
 # Routers — core features
 # ------------------------------------------------------------------
-from app.routers import tasks, notes, memory, assistant, chat, documents, productivity, dashboard, tools  # noqa: E402
+from app.routers import tasks, notes, memory, assistant, chat, documents, productivity, dashboard, tools, agents  # noqa: E402
 
 app.include_router(tasks.router)
 app.include_router(notes.router)
@@ -80,6 +81,7 @@ app.include_router(documents.router)
 app.include_router(productivity.router)
 app.include_router(dashboard.router)
 app.include_router(tools.router)
+app.include_router(agents.router)
 
 # ------------------------------------------------------------------
 # Routers — advanced features
