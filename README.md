@@ -22,11 +22,11 @@ RajOS is an intelligent personal workspace that combines AI chat, memory, task m
 | JWT Authentication (7-day token) | ✅ Working |
 | Health & Readiness Endpoints | ✅ Working |
 | 5 AI Agent Personas (Atlas, Nova, Sage, Echo, Pulse) | ✅ Working |
-| Document Upload & RAG Pipeline | ⚠️ Partial |
-| Semantic Memory Search | ⚠️ Partial |
-| Automation Engine | ⚠️ Partial |
-| Token Refresh | ❌ Not yet |
-| Database Migrations (Alembic) | ❌ Not yet |
+| Document Upload & RAG Pipeline | ✅ Working |
+| Semantic Memory Search | ✅ Working |
+| Automation Engine | ✅ Working |
+| Token Refresh | ✅ Working |
+| Database Migrations (Alembic) | ✅ Working |
 
 ---
 
