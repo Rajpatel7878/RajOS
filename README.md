@@ -83,8 +83,6 @@ RajOS/
 └── docker-compose.yml   # Full-stack container setup
 ```
 
----
-
 ## ⚙️ Prerequisites
 
 - **Python** 3.10 or later
@@ -281,5 +279,4 @@ See [`docs/RAJOS_V2_ARCHITECTURE.md`](docs/RAJOS_V2_ARCHITECTURE.md) for:
 ---
 
 ## 📄 License
-
 MIT License — see [LICENSE](LICENSE)
