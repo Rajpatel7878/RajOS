@@ -81,6 +81,7 @@ class CreateTaskTool(ToolDefinition):
             db.refresh(task)
             return {
                 "task_id": task.id,
+                "id": task.id,
                 "title": task.title,
                 "description": task.description,
                 "priority": task.priority,
