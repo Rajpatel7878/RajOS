@@ -13,6 +13,11 @@ from app.tools.memory_tools import (
 )
 from app.tools.knowledge_tools import SearchKnowledgeTool
 from app.tools.search_tools import SearchWorkspaceTool
+from app.tools.productivity_tools import (
+    GetProductivitySummaryTool, GetDailyBriefTool, GetWeeklySummaryTool,
+    GetOverdueTasksTool, GetDueSoonTasksTool, GetTaskRecommendationsTool,
+    PlanTasksTool, BreakDownTaskTool, GetWorkloadTool, GetProductivityTrendsTool
+)
 
 
 class ToolRegistry:
@@ -41,6 +46,18 @@ class ToolRegistry:
 
         self.register(SearchKnowledgeTool())
         self.register(SearchWorkspaceTool())
+
+        # Register Productivity Tools
+        self.register(GetProductivitySummaryTool())
+        self.register(GetDailyBriefTool())
+        self.register(GetWeeklySummaryTool())
+        self.register(GetOverdueTasksTool())
+        self.register(GetDueSoonTasksTool())
+        self.register(GetTaskRecommendationsTool())
+        self.register(PlanTasksTool())
+        self.register(BreakDownTaskTool())
+        self.register(GetWorkloadTool())
+        self.register(GetProductivityTrendsTool())
 
     def register(self, tool: ToolDefinition) -> None:
         if not isinstance(tool, ToolDefinition):

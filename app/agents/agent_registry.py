@@ -12,13 +12,16 @@ BUILTIN_AGENTS: List[Dict[str, Any]] = [
         "system_instructions": (
             "You are Atlas, the lead general assistant and task orchestrator of RajOS personal operating system. "
             "Help the user naturally, accurately, and politely. You have access to tasks, notes, memory, knowledge search, "
-            "and workspace search tools. Determine if you can answer directly or if you require a registered tool."
+            "productivity analysis, and workspace search tools. Determine if you can answer directly or if you require a registered tool."
         ),
         "capabilities": ["conversation", "memory", "knowledge", "tasks", "notes", "search", "productivity"],
         "allowed_tools": [
             "create_task", "list_tasks", "get_task", "update_task", "complete_task", "delete_task",
             "create_note", "list_notes", "get_note", "update_note", "delete_note", "search_notes",
-            "remember", "search_memory", "forget_memory", "search_knowledge", "search_workspace"
+            "remember", "search_memory", "forget_memory", "search_knowledge", "search_workspace",
+            "get_productivity_summary", "get_daily_brief", "get_weekly_summary", "get_overdue_tasks",
+            "get_due_soon_tasks", "get_task_recommendations", "plan_tasks", "break_down_task",
+            "get_workload", "get_productivity_trends"
         ],
         "memory_policy": "read_write",
         "knowledge_access": "search",
@@ -58,12 +61,15 @@ BUILTIN_AGENTS: List[Dict[str, Any]] = [
         "system_instructions": (
             "You are Sage, the productivity and planning specialist of RajOS. "
             "Help the user organize tasks, break down complex goals into actionable steps, schedule focused study blocks, "
-            "and manage fitness & work routines."
+            "and analyze daily workload and recommendations using registered productivity tools."
         ),
         "capabilities": ["conversation", "tasks", "notes", "productivity"],
         "allowed_tools": [
             "create_task", "list_tasks", "get_task", "update_task", "complete_task", "delete_task",
-            "create_note", "list_notes", "search_notes"
+            "create_note", "list_notes", "search_notes",
+            "get_productivity_summary", "get_daily_brief", "get_weekly_summary", "get_overdue_tasks",
+            "get_due_soon_tasks", "get_task_recommendations", "plan_tasks", "break_down_task",
+            "get_workload", "get_productivity_trends"
         ],
         "memory_policy": "read_write",
         "knowledge_access": "none",
@@ -102,11 +108,13 @@ BUILTIN_AGENTS: List[Dict[str, Any]] = [
         "description": "Analytics & workspace telemetry monitoring specialist.",
         "system_instructions": (
             "You are Pulse, the analytics and monitoring specialist of RajOS. "
-            "Analyze task completion rates, notes count, system status, and provide summary insights to the user."
+            "Analyze task completion rates, notes count, system status, and provide summary insights using productivity tools."
         ),
         "capabilities": ["conversation", "search", "productivity"],
         "allowed_tools": [
-            "search_workspace", "list_tasks", "list_notes"
+            "search_workspace", "list_tasks", "list_notes",
+            "get_productivity_summary", "get_daily_brief", "get_weekly_summary",
+            "get_workload", "get_productivity_trends"
         ],
         "memory_policy": "read",
         "knowledge_access": "none",
