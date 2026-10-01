@@ -47,6 +47,7 @@ import {
 } from "@/lib/data";
 import { cn } from "@/lib/utils";
 import { getDashboardStats, getDashboardActivity } from "@/services/api/dashboard";
+import { getDailyBrief, DailyBrief } from "@/services/api/productivity";
 
 // Lazy-load 3D AI Core canvas to guarantee zero SSR issues
 const AICore = dynamic(
@@ -88,12 +89,14 @@ const agentCards = [
 export default function DashboardPage() {
   const [stats, setStats] = useState<any>(null);
   const [activity, setActivity] = useState<any[]>([]);
+  const [dailyBrief, setDailyBrief] = useState<DailyBrief | null>(null);
 
   useEffect(() => {
-    Promise.all([getDashboardStats(), getDashboardActivity()])
-      .then(([s, a]) => {
+    Promise.all([getDashboardStats(), getDashboardActivity(), getDailyBrief()])
+      .then(([s, a, b]) => {
         setStats(s);
         setActivity(a);
+        setDailyBrief(b);
       })
       .catch((err) => console.error("Error loading dashboard data:", err));
   }, []);

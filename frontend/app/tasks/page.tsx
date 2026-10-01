@@ -216,24 +216,26 @@ export default function TasksPage() {
                 Create New Objective
               </div>
               <div className="space-y-4">
-                <Input
-                  placeholder="Task title (e.g., Deploy RAG cluster to production)..."
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-muted-foreground/60 h-11 focus:border-sky-400/50"
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleCreate();
-                    }
-                  }}
-                />
-                <Input
-                  placeholder="Optional details or context..."
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-muted-foreground/60 h-11 focus:border-sky-400/50"
-                />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input
+                    placeholder="Task title (e.g., Deploy RAG cluster to production)..."
+                    value={newTitle}
+                    onChange={(e) => setNewTitle(e.target.value)}
+                    className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-muted-foreground/60 h-11 focus:border-sky-400/50"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleCreate();
+                      }
+                    }}
+                  />
+                  <Input
+                    placeholder="Category (e.g. College, Work, Health)..."
+                    value={newDesc}
+                    onChange={(e) => setNewDesc(e.target.value)}
+                    className="bg-white/[0.03] border-white/[0.08] text-white placeholder:text-muted-foreground/60 h-11 focus:border-sky-400/50"
+                  />
+                </div>
 
                 <div className="flex flex-wrap items-center gap-4 pt-2">
                   {/* Priority selector */}
