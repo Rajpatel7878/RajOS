@@ -160,3 +160,4 @@ def test_agent_confirmation_pause_state():
         assert res["status"] in ["completed", "waiting_for_confirmation", "limit_reached"]
     finally:
         db.close()
+        

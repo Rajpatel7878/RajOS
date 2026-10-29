@@ -130,7 +130,7 @@ def test_productivity_tool_registry_execution(db_session, test_user):
 
 
 def test_user_data_isolation_productivity(db_session, test_user):
-    user_b = User(username="user_b", email="user_b@example.com", hashed_password="pw")
+    user_b = User(username="user_b", email="user_b@example.com", password="pw")
     db_session.add(user_b)
     db_session.commit()
     db_session.refresh(user_b)

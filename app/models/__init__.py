@@ -6,4 +6,4 @@ from app.models.document import Document
 from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.agent import AgentDefinitionModel, AgentRunModel
-from app.automation.automation_models import Automation
+from app.automation.automation_models import Automation, AutomationRun  # noqa: F401

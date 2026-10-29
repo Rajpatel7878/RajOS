@@ -51,12 +51,38 @@ from app.models.document import Document  # noqa: F401, E402
 from app.models.conversation import Conversation  # noqa: F401, E402
 from app.models.message import Message  # noqa: F401, E402
 from app.models.preference import UserPreference  # noqa: F401, E402
-from app.automation.automation_models import Automation  # noqa: F401, E402
+from app.automation.automation_models import Automation, AutomationRun  # noqa: F401, E402
 from app.models.agent import AgentDefinitionModel, AgentRunModel  # noqa: F401, E402
 
 # Create tables for any new models (existing data is preserved)
 Base.metadata.create_all(bind=engine)
-logger.info("Database tables verified/created.")
+
+# Additive schema sync — adds columns/indexes introduced by later phases to a
+# database created by an older release. Never drops or rewrites anything.
+from app.database.schema_sync import sync_schema  # noqa: E402
+
+schema_changes = sync_schema(engine)
+logger.info(
+    "Database tables verified/created.%s",
+    f" Schema updated: {', '.join(schema_changes)}" if schema_changes else "",
+)
+
+# ------------------------------------------------------------------
+# Background Scheduler — starts automation polling loop
+# ------------------------------------------------------------------
+from app.automation.scheduler import scheduler  # noqa: E402
+
+
+@app.on_event("startup")
+async def _start_scheduler():
+    scheduler.start()
+    logger.info("Automation background scheduler started.")
+
+
+@app.on_event("shutdown")
+async def _stop_scheduler():
+    scheduler.stop()
+    logger.info("Automation background scheduler stopped.")
 
 # ------------------------------------------------------------------
 # Routers — authentication & users

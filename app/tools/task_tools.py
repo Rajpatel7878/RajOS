@@ -53,6 +53,15 @@ class DeleteTaskInput(BaseModel):
     task_id: int = Field(..., description="ID of the task to delete", ge=1)
 
 
+def _emit_event(db, user_id: int, event_type: str, payload: dict, event_id: str) -> None:
+    """Dispatch a domain event to the Automation Engine (best effort)."""
+    try:
+        from app.automation.event_bus import emit
+        emit(db, user_id=user_id, event_type=event_type, payload=payload, event_id=event_id)
+    except Exception:  # never break a tool because of an automation failure
+        pass
+
+
 # --- Tool Implementations ---
 
 class CreateTaskTool(ToolDefinition):
@@ -79,6 +88,11 @@ class CreateTaskTool(ToolDefinition):
             db.add(task)
             db.commit()
             db.refresh(task)
+            _emit_event(
+                db, context.user_id, "task.created",
+                {"task_id": task.id, "title": task.title},
+                event_id=f"task.created:{task.id}",
+            )
             return {
                 "task_id": task.id,
                 "id": task.id,
@@ -231,6 +245,11 @@ class CompleteTaskTool(ToolDefinition):
             task.completed_at = datetime.utcnow()
             db.commit()
             db.refresh(task)
+            _emit_event(
+                db, context.user_id, "task.completed",
+                {"task_id": task.id, "title": task.title},
+                event_id=f"task.completed:{task.id}",
+            )
             return {
                 "id": task.id,
                 "title": task.title,

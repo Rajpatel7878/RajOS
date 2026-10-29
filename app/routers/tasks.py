@@ -8,6 +8,7 @@ from app.models.task import Task
 from app.schemas.task_schema import TaskCreate, TaskUpdate, TaskResponse
 from app.security.dependencies import get_current_user
 from app.models.user import User
+from app.automation import event_bus
 
 
 router = APIRouter(prefix="/tasks", tags=["Tasks"])
@@ -34,6 +35,15 @@ def create_task(
     db.add(new_task)
     db.commit()
     db.refresh(new_task)
+
+    # Notify the Automation Engine (event-based automations may subscribe)
+    event_bus.emit(
+        db,
+        user_id=user.id,
+        event_type="task.created",
+        payload={"task_id": new_task.id, "title": new_task.title},
+        event_id=f"task.created:{new_task.id}",
+    )
     return new_task
 
 
@@ -112,6 +122,15 @@ def update_task(
 
     db.commit()
     db.refresh(task)
+
+    if task.completed:
+        event_bus.emit(
+            db,
+            user_id=user.id,
+            event_type="task.completed",
+            payload={"task_id": task.id, "title": task.title},
+            event_id=f"task.completed:{task.id}",
+        )
     return task
 
 
@@ -134,6 +153,14 @@ def complete_task(
 
     db.commit()
     db.refresh(task)
+
+    event_bus.emit(
+        db,
+        user_id=user.id,
+        event_type="task.completed",
+        payload={"task_id": task.id, "title": task.title},
+        event_id=f"task.completed:{task.id}",
+    )
 
     return {
         "message": "Task completed successfully",

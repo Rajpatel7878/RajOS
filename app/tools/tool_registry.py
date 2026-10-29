@@ -18,6 +18,9 @@ from app.tools.productivity_tools import (
     GetOverdueTasksTool, GetDueSoonTasksTool, GetTaskRecommendationsTool,
     PlanTasksTool, BreakDownTaskTool, GetWorkloadTool, GetProductivityTrendsTool
 )
+from app.automation.automation_tools import (
+    CreateAutomationTool, SendNotificationTool, RunAgentTool
+)
 
 
 class ToolRegistry:
@@ -58,6 +61,11 @@ class ToolRegistry:
         self.register(BreakDownTaskTool())
         self.register(GetWorkloadTool())
         self.register(GetProductivityTrendsTool())
+
+        # Register Automation Engine tools (Phase 9)
+        self.register(CreateAutomationTool())
+        self.register(SendNotificationTool())
+        self.register(RunAgentTool())
 
     def register(self, tool: ToolDefinition) -> None:
         if not isinstance(tool, ToolDefinition):

@@ -1,50 +1,51 @@
-class WorkflowEngine:
+"""Automation Engine 2.0 — Workflow Engine (Legacy Compatibility Layer).
 
+The original WorkflowEngine is kept here as a thin façade so that any
+existing code calling `workflow_engine.execute()` continues to work.
+New code should use ExecutionEngine directly.
+"""
+
+from __future__ import annotations
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+class WorkflowEngine:
+    """Legacy compatibility wrapper — routes named action strings to descriptive results.
+
+    For V2 automations use ExecutionEngine which routes through the Tool Registry.
+    """
 
     def execute(
         self,
         action: str,
-        payload: dict | None = None
-    ):
-
+        payload: dict | None = None,
+    ) -> dict:
         payload = payload or {}
+        logger.debug("WorkflowEngine.execute (legacy) action='%s'", action)
 
-        if action == "create_task":
+        known = {
+            "create_task": "Task workflow triggered",
+            "create_note": "Note workflow triggered",
+            "send_notification": "Notification workflow triggered",
+            "get_daily_brief": "Daily brief workflow triggered",
+            "summarize_notes": "Note summarisation workflow triggered",
+        }
 
+        if action in known:
             return {
                 "status": "success",
-                "action": "create_task",
-                "message": "Task workflow triggered",
-                "payload": payload
+                "action": action,
+                "message": known[action],
+                "payload": payload,
             }
 
-
-        elif action == "create_note":
-
-            return {
-                "status": "success",
-                "action": "create_note",
-                "message": "Note workflow triggered",
-                "payload": payload
-            }
-
-
-        elif action == "send_notification":
-
-            return {
-                "status": "success",
-                "action": "send_notification",
-                "message": "Notification workflow triggered",
-                "payload": payload
-            }
-
-
-        else:
-
-            return {
-                "status": "error",
-                "message": f"Unknown action: {action}"
-            }
+        return {
+            "status": "error",
+            "message": f"Unknown action: '{action}'. Use V2 ExecutionEngine with tool names.",
+        }
 
 
 workflow_engine = WorkflowEngine()

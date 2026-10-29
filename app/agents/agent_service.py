@@ -56,9 +56,16 @@ class AgentService:
         prompt: str,
         conversation_id: Optional[int] = None,
         confirmation: Optional[Dict[str, Any]] = None,
-        conversation_history: Optional[List[Dict[str, Any]]] = None
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
+        max_steps_override: Optional[int] = None,
+        timeout_seconds_override: Optional[float] = None,
     ) -> Dict[str, Any]:
-        """Orchestrates agent execution loop with step capping, capability checking, and confirmation handling."""
+        """Orchestrates agent execution loop with step capping, capability checking, and confirmation handling.
+
+        ``max_steps_override`` / ``timeout_seconds_override`` let callers such as
+        the Automation Engine impose *stricter* limits than the agent's own
+        configuration (they can only ever lower the limits, never raise them).
+        """
 
         # 1. Resolve agent
         agent = agent_registry.get_agent(db, agent_id, user_id)
@@ -149,6 +156,12 @@ Synthesize a clear, concise confirmation summary.
         max_steps = agent.max_steps or 5
         max_tool_calls = agent.max_tool_calls or 5
         timeout_seconds = agent.timeout_seconds or 30.0
+
+        # Stricter overrides may only reduce the configured limits.
+        if max_steps_override is not None:
+            max_steps = max(1, min(max_steps, int(max_steps_override)))
+        if timeout_seconds_override is not None:
+            timeout_seconds = max(1.0, min(timeout_seconds, float(timeout_seconds_override)))
 
         provider = getattr(llm_config, "DEFAULT_PROVIDER", "gemini")
 
