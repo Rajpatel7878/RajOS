@@ -1,5 +1,8 @@
-from typing import List, Optional
+from typing import List, Optional, AsyncGenerator
+import json
+import asyncio
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
@@ -14,14 +17,20 @@ from app.schemas.chat_schema import (
 )
 from app.security.dependencies import get_current_user
 from app.services.ai_service import ai_response
-from app.services.profile_manager import ProfileManager
-from app.services.profile_query import ProfileQuery
-from app.services.preference_extractor import PreferenceExtractor
-from app.services.preference_manager import PreferenceManager
-from app.services.context_builder import ContextBuilder
 from app.services.conversation_service import ConversationService
-from app.conversation.conversation_manager import ConversationManager
-from app.memory.memory_service import memory_service
+from app.events.event_types import (
+    EventType,
+    sse_event,
+    sse_payload,
+    BaseEvent,
+    ToolCallStartEvent,
+    ToolCallResultEvent,
+    MessageStartEvent,
+    MessageCompleteEvent,
+    ErrorEvent,
+    create_content_delta_event,
+)
+from app.events.event_manager import get_connection_manager, init_connection_manager, get_publisher, clear_publisher
 
 
 router = APIRouter(
@@ -152,6 +161,251 @@ def send_message(
     if not conversation.user_title and len(recent_messages) <= 2:
         conversation_service.auto_generate_title(db, conversation.id, request.message)
 
+    async def _stream_chat_response(
+        conversation_id: int,
+        user_id: int,
+        message_id: str,
+        agent_id: str,
+    ) -> AsyncGenerator[str, None]:
+        """Async generator that yields SSE-formatted chunks for streaming AI response."""
+        from app.database.connection import SessionLocal
+        from app.services.ai_service import ai_response
+        from app.services.conversation_service import ConversationService
+        from datetime import datetime
+        
+    db = SessionLocal()
+    try:
+        # Send message_start event
+        message_start = BaseEvent(
+            event_type=EventType.MESSAGE_START,
+            user_id=user_id,
+            conversation_id=str(conversation_id),
+            message_id=message_id,
+            agent_id=agent_id,
+        )
+        yield sse_event(EventType.MESSAGE_START, sse_payload(message_start))
+
+        # Build context and generate streaming response
+        conversation_service = ConversationService()
+        conversation = conversation_service.get_conversation(db, conversation_id, user_id)
+        if not conversation:
+            yield sse_event(EventType.ERROR, sse_payload(ErrorEvent(
+                event_type=EventType.ERROR,
+                user_id=user_id,
+                conversation_id=str(conversation_id),
+                error_code="conversation_not_found",
+                error_message="Conversation not found."
+            )))
+            return
+
+        # Get recent history
+        recent_messages = conversation_service.get_recent_history(db, conversation.id, limit=20)
+        history_payload = [
+            {"role": msg.role, "content": msg.content}
+            for msg in recent_messages
+        ]
+
+        # Build full context
+        context_builder = ContextBuilder()
+        full_context = context_builder.build(
+            db,
+            user_id,
+            query_text="",
+            memory_data=[],
+            conversation_history=history_payload
+        )
+
+        # Generate AI response
+        # Note: ai_response is synchronous; we'll chunk the result after
+        ai_reply = ai_response(
+            message="",
+            user_id=user_id,
+            context=full_context,
+            confirmation=None,
+            agent_id=agent_id,
+            db=db
+        )
+
+        response_text = ai_reply.get("response", "")
+
+        # Stream content in chunks (roughly 10-20 chars per chunk for good UX)
+        if response_text:
+            chunk_size = 15
+            for i in range(0, len(response_text), chunk_size):
+                chunk = response_text[i:i + chunk_size]
+                delta_event = ContentDeltaEvent(
+                    event_type=EventType.CONTENT_DELTA,
+                    user_id=user_id,
+                    conversation_id=str(conversation_id),
+                    message_id=message_id,
+                    delta=chunk,
+                    is_final=(i + chunk_size >= len(response_text)),
+                )
+                yield sse_event(EventType.CONTENT_DELTA, sse_payload(delta_event))
+
+        # Send message complete event
+        complete_event = MessageCompleteEvent(
+            event_type=EventType.MESSAGE_COMPLETE,
+            user_id=user_id,
+            conversation_id=str(conversation_id),
+            message_id=message_id,
+            final_text=response_text,
+            markdown=True,
+        )
+        yield sse_event(EventType.MESSAGE_COMPLETE, sse_payload(complete_event))
+
+    except asyncio.CancelledError:
+        # User cancelled or connection closed
+        try:
+            cancel_event = BaseEvent(
+                event_type=EventType.CANCELLED,
+                user_id=user_id,
+                conversation_id=str(conversation_id),
+                message_id=message_id,
+            )
+            yield sse_event(EventType.CANCELLED, sse_payload(cancel_event))
+        except Exception:
+            pass
+        raise
+    except Exception as e:
+        logger.error("Streaming chat error: %s", e, exc_info=True)
+        error_event = ErrorEvent(
+            event_type=EventType.ERROR,
+            user_id=user_id,
+            conversation_id=str(conversation_id),
+            message_id=message_id,
+            error_code="streaming_error",
+            error_message=str(e),
+        )
+        yield sse_event(EventType.ERROR, sse_payload(error_event))
+    finally:
+        db.close()
+
+
+@router.post("/message", response_model=ChatResponse)
+async def send_message(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Send a chat message, execute tool loops if required, and return AI reply."""
+
+    # 1. Resolve or create conversation
+    conversation = None
+    if request.conversation_id:
+        conversation = conversation_service.get_conversation(db, request.conversation_id, user.id)
+
+    if conversation is None:
+        conversation = conversation_service.create_conversation(db, user.id, title=None)
+
+    # 2. Persist user message
+    user_message = conversation_service.save_message(
+        db,
+        conversation_id=conversation.id,
+        role="user",
+        content=request.message
+    )
+
+    # 3. Auxiliary processing (Profile & Preferences)
+    profile_manager = ProfileManager()
+    profile_manager.process(db, user.id, request.message)
+
+    profile_name = None
+    if "name" in request.message.lower():
+        profile_query = ProfileQuery()
+        profile_name = profile_query.get_profile(db, user.id, "name")
+
+    preference_extractor = PreferenceExtractor()
+    preference = preference_extractor.extract(request.message)
+    if preference:
+        key, val = preference
+        preference_manager = PreferenceManager()
+        preference_manager.save_preference(db, user.id, key, val)
+
+    # 4. Context building with multi-turn history capped at recent 20 messages
+    recent_messages = conversation_service.get_recent_history(db, conversation.id, limit=20)
+    history_payload = [
+        {"role": msg.role, "content": msg.content}
+        for msg in recent_messages
+    ]
+
+    context_builder = ContextBuilder()
+    full_context = context_builder.build(
+        db,
+        user.id,
+        query_text=request.message,
+        memory_data=[],
+        conversation_history=history_payload
+    )
+    full_context["conversation_id"] = str(conversation.id)
+
+    # 4b. Memory 2.0 processing
+    memory_data = []
+    try:
+        handled, msg, mem_obj = memory_service.parse_and_handle_explicit_intent(
+            db=db,
+            user_id=user.id,
+            user_message=request.message
+        )
+        if handled and mem_obj:
+            memory_data.append({"key": mem_obj.key, "value": mem_obj.value, "status": "explicit_handled"})
+        else:
+            extracted = memory_service.extract_memories_from_conversation(
+                db=db,
+                user_id=user.id,
+                user_message=request.message
+            )
+            for item in extracted:
+                mem_item = item.get("memory")
+                if mem_item:
+                    memory_data.append({"key": mem_item.key, "value": mem_item.value, "status": item.get("status")})
+    except Exception as e:
+        print(f"[ChatRouter] Failure processing Memory 2.0 (isolated): {e}")
+
+    # 5. Generate AI response with Tool Calling 2.0
+    conversation_manager = ConversationManager()
+    conversation_data = conversation_manager.chat(
+        str(user.id),
+        request.message,
+        [m["content"] for m in history_payload if m["role"] == "user"]
+    )
+
+    if profile_name:
+        ai_reply = {
+            "response": f"Your name is {profile_name}.",
+            "memory": [],
+            "conversation_context": conversation_data,
+            "agent": {}
+        }
+    else:
+        ai_reply = ai_response(
+            message=request.message,
+            user=user,
+            context=full_context,
+            confirmation=request.confirmation,
+            agent_id=request.agent_id,
+            db=db
+        )
+
+    ai_reply["memory"] = memory_data
+    ai_reply["conversation_context"] = conversation_data
+
+    # 6. Persist assistant message
+    conversation_service.save_message(
+        db,
+        conversation_id=conversation.id,
+        role="assistant",
+        content=ai_reply["response"]
+    )
+
+    # 7. Auto-generate title on initial interaction if title is not locked
+    if not conversation.user_title and len(recent_messages) <= 2:
+        conversation_service.auto_generate_title(db, conversation.id, request.message)
+
+    message_id = str(uuid4())
+    agent_id = request.agent_id or "atlas"
+
+    # Return immediate response for non-streaming clients
     return {
         "conversation_id": conversation.id,
         "response": ai_reply["response"],
@@ -161,8 +415,151 @@ def send_message(
         "sources": full_context.get("rag_sources", []),
         "requires_confirmation": ai_reply.get("requires_confirmation"),
         "confirmation_details": ai_reply.get("confirmation_details"),
-        "tool_executions": ai_reply.get("tool_executions")
+        "tool_executions": ai_reply.get("tool_executions"),
+        "_stream_id": message_id,
     }
+
+
+# ------------------------------------------------------------------
+# SSE Streaming Endpoint
+# ------------------------------------------------------------------
+
+@router.post("/stream", responses={200: {"description": "Streaming AI response via SSE"}})
+async def stream_chat(
+    request: ChatRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user)
+):
+    """Stream AI response progressively via Server-Sent Events.
+
+    Returns a StreamingResponse that sends SSE-formatted events:
+    - message_start: streaming has begun
+    - content_delta: text chunks arrive progressively
+    - message_complete: final response is ready
+    - error: something went wrong
+    - cancelled: stream was interrupted
+    """
+    import uuid
+
+    conversation_id = request.conversation_id
+    if not conversation_id:
+        conversation = conversation_service.create_conversation(db, user.id, title=None)
+        conversation_id = conversation.id
+    else:
+        conversation = conversation_service.get_conversation(db, conversation_id, user.id)
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Persist user message
+    user_message = conversation_service.save_message(
+        db,
+        conversation_id=conversation.id,
+        role="user",
+        content=request.message
+    )
+
+    # Auxiliary processing (Profile & Preferences)
+    profile_manager = ProfileManager()
+    profile_manager.process(db, user.id, request.message)
+
+    profile_name = None
+    if "name" in request.message.lower():
+        profile_query = ProfileQuery()
+        profile_name = profile_query.get_profile(db, user.id, "name")
+
+    preference_extractor = PreferenceExtractor()
+    preference = preference_extractor.extract(request.message)
+    if preference:
+        key, val = preference
+        preference_manager = PreferenceManager()
+        preference_manager.save_preference(db, user.id, key, val)
+
+    # Context building
+    recent_messages = conversation_service.get_recent_history(db, conversation.id, limit=20)
+    history_payload = [
+        {"role": msg.role, "content": msg.content}
+        for msg in recent_messages
+    ]
+
+    context_builder = ContextBuilder()
+    full_context = context_builder.build(
+        db,
+        user.id,
+        query_text=request.message,
+        memory_data=[],
+        conversation_history=history_payload
+    )
+    full_context["conversation_id"] = str(conversation.id)
+
+    # Memory 2.0 processing
+    memory_data = []
+    try:
+        handled, msg, mem_obj = memory_service.parse_and_handle_explicit_intent(
+            db=db,
+            user_id=user.id,
+            user_message=request.message
+        )
+        if handled and mem_obj:
+            memory_data.append({"key": mem_obj.key, "value": mem_obj.value, "status": "explicit_handled"})
+        else:
+            extracted = memory_service.extract_memories_from_conversation(
+                db=db,
+                user_id=user.id,
+                user_message=request.message
+            )
+            for item in extracted:
+                mem_item = item.get("memory")
+                if mem_item:
+                    memory_data.append({"key": mem_item.key, "value": mem_item.value, "status": item.get("status")})
+    except Exception as e:
+        print(f"[ChatRouter] Failure processing Memory 2.0 (isolated): {e}")
+
+    message_id = request.conversation_id or str(uuid4())
+    agent_id = request.agent_id or "atlas"
+
+    # Initialize connection manager and publisher
+    cm = init_connection_manager()
+    publisher = get_publisher(user.id, cm)
+
+    # Subscribe this user to the event stream
+    queue = cm.subscribe(user.id)
+
+    # Launch streaming task
+    streaming_task = asyncio.create_task(
+        _stream_chat_response(
+            conversation_id=conversation.id,
+            user_id=user.id,
+            message_id=message_id,
+            agent_id=agent_id,
+        )
+    )
+
+    async def event_generator() -> AsyncGenerator[str, None]:
+        try:
+            # Yield events from the streaming task
+            async for sse_chunk in streaming_task:
+                yield sse_chunk
+            # After streaming completes, keep the connection alive briefly
+            # in case the frontend needs to reconnect or poll status
+            await asyncio.sleep(0.5)
+        except asyncio.CancelledError:
+            # Connection closed by client
+            cm.unsubscribe(user.id, queue)
+            clear_publisher(user.id)
+            raise
+        finally:
+            cm.unsubscribe(user.id, queue)
+            clear_publisher(user.id)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",  # disable nginx buffering
+            "Connection": "keep-alive",
+        },
+    )
 
 
 # ------------------------------------------------------------------
