@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Plus, Sparkles, ChevronRight } from "lucide-react";
+import { Search, Plus, Sparkles, ChevronRight, X, Mail, User } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";

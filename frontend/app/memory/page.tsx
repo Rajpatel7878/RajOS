@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Search,
@@ -67,7 +67,7 @@ export default function MemoryPage() {
   const [processingIntent, setProcessingIntent] = useState(false);
   const [intentMessage, setIntentMessage] = useState<string | null>(null);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
       const [mList, mStats] = await Promise.all([
@@ -82,11 +82,11 @@ export default function MemoryPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedCategory, search]);
 
   useEffect(() => {
     loadData();
-  }, [selectedCategory]);
+  }, [loadData]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();

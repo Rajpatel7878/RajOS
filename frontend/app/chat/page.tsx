@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { marked } from 'marked';
 import {
   Send,
   Paperclip,
@@ -809,6 +810,7 @@ export default function ChatPage() {
                                   src={att.url}
                                   alt={att.name}
                                   className="h-full w-full object-cover"
+                                  loading="lazy"
                                 />
                               </div>
                             ) : (
@@ -1093,9 +1095,9 @@ function MessageBubble({
           )}
 
           {/* Text Message Bubble */}
-          {message.content && (
+ {message.content && (
             <div className="rounded-2xl rounded-tr-sm bg-gradient-to-br from-sky-500/20 to-cyan-500/10 border border-sky-400/30 px-4 py-3 shadow-[0_4px_16px_rgba(56,189,248,0.1)]">
-              <p className="text-sm leading-relaxed text-white whitespace-pre-wrap">{message.content}</p>
+              <div dangerouslySetInnerHTML={{ __html: marked.parse(message.content) }} className="text-sm leading-relaxed text-white break-words" />
             </div>
           )}
 
@@ -1125,8 +1127,7 @@ function MessageBubble({
           <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
             <span className="font-medium text-cyan-400">{message.agent ?? agentName}</span>
             {message.model && <span>· {message.model}</span>}
-          </div>
-          <p className="text-sm leading-relaxed text-white/90 whitespace-pre-wrap">{message.content}</p>
+          </div>          <div dangerouslySetInnerHTML={{ __html: marked.parse(message.content) }} className="text-sm leading-relaxed text-white/90 break-words" />
 
           {/* Sources / Attached Files Analyzed */}
           {message.sources && message.sources.length > 0 && (
@@ -1151,8 +1152,7 @@ function MessageBubble({
               <span className="text-xs text-muted-foreground">Context:</span>
               {message.memoryUsed.map((m) => (
                 <span key={m} className="flex items-center gap-1 rounded-full border border-violet-400/20 bg-violet-400/5 px-2 py-0.5 text-xs text-violet-300">
-                  <BrainCircuit className="h-3 w-3" /> {m}
-                </span>
+                  <BrainCircuit className="h-3 w-3" /> {m}</span>
               ))}
             </div>
           )}
@@ -1181,8 +1181,7 @@ function MessageBubble({
               <div className="flex flex-wrap gap-1.5">
                 {message.toolExecutions.map((t, idx) => (
                   <span key={idx} className="inline-flex items-center gap-1 rounded-md border border-sky-400/30 bg-sky-500/10 px-2.5 py-1 text-[11px] font-mono text-sky-300">
-                    ⚡ {t.tool_name}
-                  </span>
+                    ⚡ {t.tool_name}</span>
                 ))}
               </div>
             </div>
@@ -1198,6 +1197,7 @@ function MessageBubble({
               <p className="text-xs text-amber-200/90">
                 RajOS wants to execute destructive tool <code className="bg-black/40 px-1 py-0.5 rounded font-mono text-amber-300">{message.confirmationDetails.tool_name}</code>.
               </p>
+
               <div className="flex items-center gap-2 pt-1">
                 <Button
                   size="sm"

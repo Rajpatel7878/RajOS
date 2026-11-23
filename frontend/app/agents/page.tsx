@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bot,
@@ -62,7 +62,7 @@ export default function AgentsPage() {
   const [runResult, setRunResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const loadBackendAgents = async () => {
+  const loadBackendAgents = useCallback(async () => {
     try {
       setLoading(true);
       const backendData = await getAgents();
@@ -74,11 +74,11 @@ export default function AgentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedAgent]);
 
   useEffect(() => {
     loadBackendAgents();
-  }, []);
+  }, [loadBackendAgents]);
 
   const handleRunAgent = async () => {
     if (!runPrompt.trim() || runningAgent) return;

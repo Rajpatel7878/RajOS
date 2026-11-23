@@ -60,6 +60,7 @@ export default function ChatPage() {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, isTyping]);
 
   useEffect(() => {
     async function loadHistory() {
@@ -72,7 +73,6 @@ export default function ChatPage() {
     }
 
     loadHistory();
-  }, []);
   }, [messages, isTyping]);
 
   const handleSend = () => {
