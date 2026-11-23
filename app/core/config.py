@@ -30,6 +30,28 @@ class Settings(BaseSettings):
     # The default here is intentionally non-secret and will only be
     # used in local development if .env is missing.
     # ---------------------------------------------------------------
+    # SECRET_KEY validation
+    # In production, SECRET_KEY must be set via environment variable
+    # The default below is only for local development convenience
+    # Check for default after model init to avoid naming conflicts
+    _use_dev_default: bool = False
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        # Mark that we're using the dev default so we can warn later
+        if self.SECRET_KEY == "CHANGE_THIS_IN_PRODUCTION_USE_A_LONG_RANDOM_SECRET_KEY":
+            self._use_dev_default = True
+
+    # Warn on first access if using dev default in production
+    def validate_dev_secret_key(self) -> None:
+        """Call after Settings() construction to warn if using dev default in prod."""
+        if getattr(self, "_use_dev_default", False) and not self.DEBUG:
+            import warnings
+            warnings.warn(
+                "SECRET_KEY is using the development default! Set a proper SECRET_KEY in production.",
+                UserWarning,
+            )
+
     SECRET_KEY: str = "CHANGE_THIS_IN_PRODUCTION_USE_A_LONG_RANDOM_SECRET_KEY"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 10080  # 7 days
 
@@ -65,3 +87,5 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+# Validate SECRET_KEY - warn if using dev default in production
+settings.validate_dev_secret_key()
