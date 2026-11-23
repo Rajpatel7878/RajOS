@@ -51,6 +51,7 @@ from app.models.document import Document  # noqa: F401, E402
 from app.models.conversation import Conversation  # noqa: F401, E402
 from app.models.message import Message  # noqa: F401, E402
 from app.models.preference import UserPreference  # noqa: F401, E402
+from app.models.search_history import SearchHistory  # noqa: F401, E402
 from app.automation.automation_models import Automation, AutomationRun  # noqa: F401, E402
 from app.models.agent import AgentDefinitionModel, AgentRunModel  # noqa: F401, E402
 

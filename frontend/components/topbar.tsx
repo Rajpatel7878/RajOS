@@ -1,7 +1,7 @@
 ﻿"use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { Search, Command, Plus, Sparkles, ChevronRight } from "lucide-react";
+import { Search, Plus, Sparkles, ChevronRight } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import { QuickCapture } from "@/components/quick-capture";
 
 const pageTitles: Record<string, { title: string; subtitle: string; segment: string }> = {
   "/dashboard": { title: "Command Center", subtitle: "Your AI operating system at a glance", segment: "Dashboard" },
+  "/search":    { title: "Unified Workspace", subtitle: "Search everything in RajOS",          segment: "Search" },
   "/chat":      { title: "AI Chat",         subtitle: "Converse with your intelligent agents",   segment: "Chat" },
   "/agents":    { title: "Agent Center",    subtitle: "Manage and monitor your AI workforce",     segment: "Agents" },
   "/memory":    { title: "Memory Engine",   subtitle: "Long-term intelligence and recall",        segment: "Memory" },
@@ -63,7 +64,8 @@ export function Topbar() {
 
           {/* Search pill */}
           <button
-            onClick={() => document.dispatchEvent(new CustomEvent("open-quick-capture"))}
+            onClick={() => router.push("/search")}
+            aria-label="Search your RajOS workspace"
             className={[
               "group hidden md:flex items-center gap-2.5 px-3.5 py-2 rounded-xl",
               "border border-white/[0.08] bg-white/[0.03] text-sm text-muted-foreground",
@@ -74,10 +76,7 @@ export function Topbar() {
             ].join(" ")}
           >
             <Search className="h-3.5 w-3.5 text-muted-foreground/60 group-hover:text-sky-400 transition-colors" />
-            <span className="text-[13px]">Quick capture...</span>
-            <kbd className="ml-3 flex items-center gap-0.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground/60">
-              <Command className="h-2.5 w-2.5" />K
-            </kbd>
+            <span className="text-[13px]">Search workspace...</span>
           </button>
 
           {/* Thin separator */}

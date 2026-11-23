@@ -88,10 +88,20 @@ The scheduler **never** executes actions itself — it only calls
 | `next_run_at` | DateTime(tz) | Persisted schedule state |
 | `last_run_at` | DateTime(tz) | |
 | `created_at` / `updated_at` | DateTime(tz) | |
-| `trigger` / `action` | String, nullable | Legacy Phase 1 compatibility |
+| `trigger` / `action` | String, NOT NULL, default `''` | Legacy Phase 1 compatibility |
 
 Legacy rows keep working: if `actions` is empty and the old `action` string is
 set, the execution engine treats it as a single action.
+
+The Phase 1 schema created `trigger` and `action` as `NOT NULL`. `create_all`
+cannot alter an existing table and `sync_schema` never rewrites one (§18), so an
+upgraded database keeps that constraint. V2 automations therefore store `""`
+in these legacy columns instead of `NULL`, which lets them be created on the
+existing database without a table rebuild. Rows written by Phase 1 keep their
+trigger/action strings untouched. A Phase 1 create payload (`name` +
+`trigger` + `action`, with no V2 field) is still accepted: it is stored as-is,
+left unscheduled (`next_run_at = None`) and run on demand through
+`/automation/{id}/run`, exactly as before.
 
 `AutomationRun` — table `automation_runs` — one row per execution (§9).
 
@@ -498,6 +508,14 @@ Deleting archives (`archived_at` set, `enabled = False`): the automation leaves
 the list and is never executed again, while `GET /{id}/runs` keeps returning its
 full history.
 
+Backward compatibility: a `POST /automation/` body that only sets the Phase 1
+`trigger` and `action` strings is stored unchanged and is never scheduled. Any
+request that explicitly sets a V2 field (`trigger_type`, `trigger_config`,
+`conditions` or `actions`) is validated as a V2 definition, so the legacy path
+can never hide an invalid modern trigger. `POST /automation/preview` accepts the
+same legacy payload (returning `legacy_payload: true` and `next_run_at: null`),
+so a draft is never rejected by preview when create would accept it.
+
 ---
 
 ## 14. Agent integration
@@ -572,14 +590,14 @@ Notifications go through the **existing** `app.notifications.notification_manage
 
 ## 17. Frontend
 
-`frontend/services/api/automation.ts` — typed client for every endpoint
+`Frontend/services/api/automation.ts` — typed client for every endpoint
 (`listAutomations`, `createAutomation`, `updateAutomation`, `deleteAutomation`,
 `enableAutomation`, `disableAutomation`, `runAutomation`, `cancelAutomation`,
 `getAutomationRuns`, `previewAutomation`, `previewDraftAutomation`, `fireEvent`),
 with a shared error formatter that turns FastAPI validation arrays into readable
 messages.
 
-`frontend/app/automation/page.tsx`:
+`Frontend/app/automation/page.tsx`:
 
 * Stats row (total / active / paused) and a refresh button.
 * Automation list showing **name, status, trigger, timezone, conditions, actions
@@ -628,6 +646,12 @@ and **never** drops, renames or rewrites anything. Every change is logged. No
 data is destroyed and no database is reset; the existing `rajos.db` is
 preserved and upgraded in place.
 
+Constraint-preserving, not constraint-rewriting: a Phase 1 database keeps
+`automations.trigger` and `automations.action` as `NOT NULL`. No table is
+rebuilt to relax it — V2 definitions simply store `""` in those legacy columns
+(§2), so creation succeeds on both a fresh and an upgraded database while every
+existing row keeps its values.
+
 ---
 
 ## 19. Security review
@@ -651,8 +675,8 @@ preserved and upgraded in place.
 
 ## 20. Testing
 
-`tests/test_automation.py` — **152 tests**, all passing. The whole backend suite
-reports **216 passed**.
+`tests/test_automation.py` — **157 tests**, all passing. The whole backend suite
+reports **253 passed** (`python -m pytest tests`).
 
 | Test class | Tests | Covers |
 |---|---|---|
@@ -676,6 +700,7 @@ reports **216 passed**.
 | `TestRecursionProtection` | 3 | Self-triggering automation blocked; two automations bounded; depth cap blocks deep chains |
 | `TestRateLimiting` | 3 | Burst capped, reason recorded, per-automation budgets |
 | `TestIdempotency` | 2 | Same execution key runs once; distinct keys run separately |
+| `TestLegacyDatabaseCompatibility` | 5 | V2 create on a Phase 1 schema with `NOT NULL` legacy columns; pre-existing rows preserved; legacy `trigger`/`action` payload accepted, runnable and previewable; explicit V2 fields still validated by create and preview |
 
 `tests/conftest.py` points the application engine (tools, scheduler, background
 threads) at a throw-away temp-file database, so tests never touch `./rajos.db`.

@@ -65,8 +65,8 @@ RajOS V2 is organized into **14 major development phases**.
 | 06    | Tool Registry & Function Calling 2.0   | 🔄     |
 | 07    | AI Agent System 2.0                    | 🔄     |
 | 08    | Productivity Intelligence              | 🔄     |
-| 09    | Automation Engine 2.0                  | ⏳      |
-| 10    | Search & Unified Workspace             | ⏳      |
+| 09    | Automation Engine 2.0                  | 🔄     |
+| 10    | Search & Unified Workspace             | 🔄     |
 | 11    | Professional Frontend 2.0              | ⏳      |
 | 12    | Streaming, Realtime & UX               | ⏳      |
 | 13    | Security, Reliability & Testing        | ⏳      |
@@ -352,22 +352,25 @@ Planned capabilities include:
 
 # 🔎 Unified Search
 
-RajOS V2 will provide a unified search layer across the workspace.
-
-Potential search targets:
+Phase 10 provides an authenticated, provider-based unified search layer across
+the workspace. One ranking pipeline searches:
 
 ```text
 Tasks
 Notes
 Documents
-Conversations
+Conversations and messages
 Memories
-Knowledge
-Agents
-Workspace data
+Knowledge base passages (opt-in semantic retrieval)
 ```
 
-The goal is to make the entire RajOS workspace searchable from one place.
+Search is available at `/search` in the frontend and through
+`GET /search` in the API, with resource-type filters, date ranges, sorting,
+pagination, scoped suggestions and per-user search history. The same engine is
+registered as the `unified_search` AI tool.
+
+See [`docs/RAJOS_V2_UNIFIED_SEARCH.md`](docs/RAJOS_V2_UNIFIED_SEARCH.md) for the
+architecture, ranking strategy, API contract and extension guide.
 
 ---
 
@@ -789,11 +792,11 @@ The architecture is being implemented incrementally across the 14-phase roadmap.
 
 The current development focus is:
 
-> **Phase 8 — Productivity Intelligence**
+> **Phase 10 — Search & Unified Workspace**
 
 Next:
 
-> **Phase 9 — Automation Engine 2.0**
+> **Phase 11 — Professional Frontend 2.0**
 
 ---
 

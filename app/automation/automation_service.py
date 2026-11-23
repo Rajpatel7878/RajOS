@@ -65,9 +65,6 @@ class AutomationService:
         user_id: int,
         data: AutomationCreate,
     ) -> Automation:
-        # Validate the trigger definition before persisting anything.
-        data.validate_trigger()
-
         trigger_cfg = (
             data.trigger_config.model_dump(exclude_none=True)
             if data.trigger_config else {}
@@ -75,11 +72,27 @@ class AutomationService:
         conditions = [c.model_dump() for c in (data.conditions or [])]
         actions = [a.model_dump() for a in (data.actions or [])]
 
-        # Re-validate the fully normalised definition (trigger + conditions +
-        # actions against the Tool Registry) before anything is persisted.
-        self.validate_definition(
-            data.trigger_type, trigger_cfg, conditions, actions, data.timezone
-        )
+        # Phase 1 clients only sent free-form `trigger` / `action` strings.
+        # Such a payload has no structured trigger to validate or schedule, and
+        # is executed manually (legacy behaviour).  Anything that sets a V2
+        # field explicitly is treated as — and fully validated as — a V2
+        # definition, so this branch can never hide a broken V2 trigger.
+        if data.is_legacy_only():
+            next_run = None
+        else:
+            # Validate the trigger definition before persisting anything.
+            data.validate_trigger()
+
+            # Re-validate the fully normalised definition (trigger + conditions +
+            # actions against the Tool Registry) before anything is persisted.
+            self.validate_definition(
+                data.trigger_type, trigger_cfg, conditions, actions, data.timezone
+            )
+
+            # Compute initial next_run_at in the automation's own timezone.
+            next_run = trigger_engine.compute_next_run(
+                data.trigger_type, trigger_cfg, timezone_name=data.timezone
+            )
 
         automation = Automation(
             user_id=user_id,
@@ -94,15 +107,12 @@ class AutomationService:
             failure_policy=data.failure_policy,
             max_retries=data.max_retries,
             retry_delay_seconds=data.retry_delay_seconds,
-            # Legacy compat
-            trigger=data.trigger,
-            action=data.action,
+            # Legacy compat — the physical column is NOT NULL on databases
+            # created before Phase 9, so V2 automations store "".
+            trigger=data.trigger or "",
+            action=data.action or "",
         )
 
-        # Compute initial next_run_at in the automation's own timezone.
-        next_run = trigger_engine.compute_next_run(
-            data.trigger_type, trigger_cfg, timezone_name=data.timezone
-        )
         automation.next_run_at = next_run
 
         db.add(automation)

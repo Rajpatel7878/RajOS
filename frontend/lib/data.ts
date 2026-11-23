@@ -16,6 +16,7 @@ export const navSections = [
     heading: 'Workspace',
     items: [
       { label: 'Dashboard', href: '/dashboard', icon: 'LayoutDashboard' },
+      { label: 'Search', href: '/search', icon: 'Search' },
       { label: 'AI Chat', href: '/chat', icon: 'MessageSquare' },
       { label: 'Agents', href: '/agents', icon: 'Bot' },
     ],

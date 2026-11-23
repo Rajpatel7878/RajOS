@@ -12,7 +12,7 @@ from app.tools.memory_tools import (
     RememberTool, SearchMemoryTool, ForgetMemoryTool
 )
 from app.tools.knowledge_tools import SearchKnowledgeTool
-from app.tools.search_tools import SearchWorkspaceTool
+from app.tools.search_tools import SearchWorkspaceTool, UnifiedSearchTool
 from app.tools.productivity_tools import (
     GetProductivitySummaryTool, GetDailyBriefTool, GetWeeklySummaryTool,
     GetOverdueTasksTool, GetDueSoonTasksTool, GetTaskRecommendationsTool,
@@ -49,6 +49,7 @@ class ToolRegistry:
 
         self.register(SearchKnowledgeTool())
         self.register(SearchWorkspaceTool())
+        self.register(UnifiedSearchTool())
 
         # Register Productivity Tools
         self.register(GetProductivitySummaryTool())

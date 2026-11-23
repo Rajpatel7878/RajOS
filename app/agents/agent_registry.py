@@ -19,6 +19,7 @@ BUILTIN_AGENTS: List[Dict[str, Any]] = [
             "create_task", "list_tasks", "get_task", "update_task", "complete_task", "delete_task",
             "create_note", "list_notes", "get_note", "update_note", "delete_note", "search_notes",
             "remember", "search_memory", "forget_memory", "search_knowledge", "search_workspace",
+            "unified_search",
             "get_productivity_summary", "get_daily_brief", "get_weekly_summary", "get_overdue_tasks",
             "get_due_soon_tasks", "get_task_recommendations", "plan_tasks", "break_down_task",
             "get_workload", "get_productivity_trends"
@@ -43,7 +44,7 @@ BUILTIN_AGENTS: List[Dict[str, Any]] = [
         ),
         "capabilities": ["conversation", "knowledge", "search", "notes"],
         "allowed_tools": [
-            "search_knowledge", "search_workspace", "search_notes", "get_note", "list_notes"
+            "search_knowledge", "search_workspace", "unified_search", "search_notes", "get_note", "list_notes"
         ],
         "memory_policy": "read",
         "knowledge_access": "full",
@@ -112,7 +113,7 @@ BUILTIN_AGENTS: List[Dict[str, Any]] = [
         ),
         "capabilities": ["conversation", "search", "productivity"],
         "allowed_tools": [
-            "search_workspace", "list_tasks", "list_notes",
+            "search_workspace", "unified_search", "list_tasks", "list_notes",
             "get_productivity_summary", "get_daily_brief", "get_weekly_summary",
             "get_workload", "get_productivity_trends"
         ],
@@ -153,6 +154,13 @@ class AgentRegistry:
                     user_id=None
                 )
                 db.add(agent)
+            elif existing.is_builtin:
+                # Additive migration: built-in agents gain newly registered tools
+                # without losing any tools already granted to them.
+                allowed = list(existing.allowed_tools or [])
+                missing = [tool for tool in b_data["allowed_tools"] if tool not in allowed]
+                if missing:
+                    existing.allowed_tools = allowed + missing
         db.commit()
 
     def get_agent(self, db: Session, agent_id: str, user_id: Optional[int] = None) -> Optional[AgentDefinitionModel]:

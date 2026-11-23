@@ -199,22 +199,28 @@ def preview_new_automation(
         data.trigger_config.model_dump(exclude_none=True)
         if data.trigger_config else {}
     )
-    try:
-        # Same validation the create endpoint runs — the preview must not tell
-        # the user a draft is fine when creating it would fail.
-        automation_service.validate_definition(
-            data.trigger_type,
-            cfg,
-            [c.model_dump() for c in (data.conditions or [])],
-            [a.model_dump() for a in (data.actions or [])],
-            data.timezone,
-        )
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
+    # A Phase 1 payload has no structured trigger to validate or schedule — it
+    # is previewed as an unscheduled legacy definition, exactly as it is created.
+    legacy_only = data.is_legacy_only()
+    if legacy_only:
+        next_run = None
+    else:
+        try:
+            # Same validation the create endpoint runs — the preview must not
+            # tell the user a draft is fine when creating it would fail.
+            automation_service.validate_definition(
+                data.trigger_type,
+                cfg,
+                [c.model_dump() for c in (data.conditions or [])],
+                [a.model_dump() for a in (data.actions or [])],
+                data.timezone,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc))
 
-    next_run = trigger_engine.compute_next_run(
-        data.trigger_type, cfg, timezone_name=data.timezone
-    )
+        next_run = trigger_engine.compute_next_run(
+            data.trigger_type, cfg, timezone_name=data.timezone
+        )
     return {
         "valid": True,
         "name": data.name,
@@ -226,6 +232,7 @@ def preview_new_automation(
         "conditions": [c.model_dump() for c in (data.conditions or [])],
         "estimated_action_count": len(data.actions or []),
         "failure_policy": data.failure_policy,
+        "legacy_payload": legacy_only,
     }
 
 

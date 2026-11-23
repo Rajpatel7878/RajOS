@@ -36,6 +36,14 @@ _REQUIRED_INDEXES = (
         ["automation_id", "execution_key"],
         True,
     ),
+    # Unified search (Phase 10): user-scoped lookups and history ordering.
+    ("ix_search_history_user_searched", "search_history", ["user_id", "searched_at"], False),
+    ("ix_tasks_user_id", "tasks", ["user_id"], False),
+    ("ix_notes_user_id", "notes", ["user_id"], False),
+    ("ix_documents_user_status", "documents", ["user_id", "status"], False),
+    ("ix_conversations_user_id", "conversations", ["user_id"], False),
+    ("ix_memories_user_status", "memories", ["user_id", "status"], False),
+    ("ix_messages_conversation_id", "messages", ["conversation_id"], False),
 )
 
 

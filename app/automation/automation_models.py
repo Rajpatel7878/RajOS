@@ -35,8 +35,12 @@ class Automation(Base):
     description = Column(String, nullable=True)
 
     # --- Legacy fields (kept for backward compat) ---
-    trigger = Column(String, nullable=True)   # e.g. "task.completed"
-    action = Column(String, nullable=True)    # e.g. "create_task"
+    # The Phase 1 schema created these columns as NOT NULL, and an existing
+    # database keeps that constraint (schema_sync never rewrites a table).
+    # They are therefore declared NOT NULL with an empty-string default: V2
+    # automations store "" here and never fail the legacy constraint.
+    trigger = Column(String, nullable=False, default="", server_default="")
+    action = Column(String, nullable=False, default="", server_default="")
 
     # --- V2 structured trigger ---
     trigger_type = Column(

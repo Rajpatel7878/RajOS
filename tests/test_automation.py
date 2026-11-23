@@ -2386,3 +2386,175 @@ class TestAgentIntegration:
         assert result.success is False
         assert result.error.code.value == "PERMISSION_DENIED"
 
+
+
+# ──────────────────────────────────────────────────────────────
+# 22. Legacy database / payload compatibility
+# ──────────────────────────────────────────────────────────────
+
+class TestLegacyDatabaseCompatibility:
+    """Phase 9 must run on a database created by Phase 1.
+
+    Phase 1 declared ``automations.trigger`` and ``automations.action`` as
+    NOT NULL.  ``Base.metadata.create_all`` never alters an existing table and
+    ``sync_schema`` deliberately only adds things, so those columns keep their
+    constraint after the upgrade.  V2 automations carry no legacy trigger/action
+    strings, and must still be insertable without rewriting the table or
+    touching the rows that already exist.
+    """
+
+    _PHASE1_DDL = (
+        "CREATE TABLE automations ("
+        " id INTEGER NOT NULL,"
+        " user_id INTEGER NOT NULL,"
+        " name VARCHAR NOT NULL,"
+        ' "trigger" VARCHAR NOT NULL,'
+        " action VARCHAR NOT NULL,"
+        " enabled BOOLEAN,"
+        " created_at DATETIME DEFAULT CURRENT_TIMESTAMP,"
+        " PRIMARY KEY (id)"
+        ")"
+    )
+
+    @pytest.fixture()
+    def upgraded_engine(self, tmp_path):
+        """A Phase 1 ``automations`` table upgraded in place by startup code."""
+        from sqlalchemy import create_engine
+        from app.database.connection import Base
+        from app.database.schema_sync import sync_schema
+
+        engine = create_engine(
+            f"sqlite:///{tmp_path / 'phase1.db'}",
+            connect_args={"check_same_thread": False},
+        )
+        with engine.begin() as connection:
+            connection.exec_driver_sql(self._PHASE1_DDL)
+            connection.exec_driver_sql(
+                'INSERT INTO automations (id, user_id, name, "trigger", action, enabled)'
+                " VALUES (1, 1, 'Legacy digest', 'daily', 'send_notification', 1)"
+            )
+
+        # Exactly what app startup does: create missing tables, then add the
+        # Phase 9 columns/indexes to the pre-existing table.
+        Base.metadata.create_all(bind=engine)
+        sync_schema(engine)
+        yield engine
+        engine.dispose()
+
+    def test_v2_automation_can_be_created_on_an_upgraded_database(self, upgraded_engine):
+        from sqlalchemy.orm import sessionmaker
+        from app.models.user import User
+
+        db = sessionmaker(bind=upgraded_engine)()
+        try:
+            user = User(
+                username="upgrade_user",
+                email="upgrade_user@rajos.io",
+                password="TestPassword123!",
+                notifications_enabled=False,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+            created = AutomationService().create(
+                db,
+                user.id,
+                AutomationCreate(
+                    name="Morning brief",
+                    trigger_type="schedule",
+                    trigger_config=TriggerConfig(time="08:00"),
+                    actions=[
+                        ActionStep(
+                            tool_name="send_notification",
+                            arguments={"message": "Good morning"},
+                        )
+                    ],
+                ),
+            )
+
+            assert created.id is not None
+            assert created.trigger == ""   # satisfies the legacy NOT NULL column
+            assert created.action == ""
+            assert created.next_run_at is not None
+
+            # Pre-existing Phase 1 data is preserved exactly.
+            legacy = db.query(Automation).filter(Automation.id == 1).one()
+            assert legacy.name == "Legacy digest"
+            assert legacy.trigger == "daily"
+            assert legacy.action == "send_notification"
+            assert db.query(Automation).count() == 2
+        finally:
+            db.close()
+
+    def test_legacy_trigger_action_payload_is_still_accepted(self):
+        """A Phase 1 client payload (trigger/action only) is not rejected."""
+        db = _app_session()
+        try:
+            user = _app_user(db)
+            automation = AutomationService().create(
+                db,
+                user.id,
+                AutomationCreate(
+                    name="Legacy reminder",
+                    trigger="daily",
+                    action="list_tasks",
+                ),
+            )
+
+            assert automation.id is not None
+            assert automation.trigger == "daily"
+            assert automation.action == "list_tasks"
+            # Free-form legacy triggers are not scheduled; they run on demand.
+            assert automation.next_run_at is None
+
+            run = ExecutionEngine().execute(automation, db, trigger_source="manual")
+            assert run.status == "completed"
+            assert run.execution_log[0]["tool_name"] == "list_tasks"
+        finally:
+            db.close()
+
+    def test_explicit_v2_fields_are_never_treated_as_legacy(self):
+        """A malformed V2 definition is still rejected even with a legacy action."""
+        db = _app_session()
+        try:
+            user = _app_user(db)
+            with pytest.raises(ValueError):
+                AutomationService().create(
+                    db,
+                    user.id,
+                    AutomationCreate(
+                        name="Broken schedule",
+                        action="list_tasks",
+                        trigger_type="schedule",
+                        trigger_config=TriggerConfig(),  # no time → invalid
+                    ),
+                )
+        finally:
+            db.close()
+
+    def test_legacy_payload_preview_matches_create_behaviour(self, client, auth_headers):
+        """Preview must not reject a draft that create would accept."""
+        resp = client.post(
+            "/automation/preview",
+            headers=auth_headers,
+            json={"name": "Legacy reminder", "trigger": "daily", "action": "list_tasks"},
+        )
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["valid"] is True
+        assert body["legacy_payload"] is True
+        assert body["next_run_at"] is None
+
+    def test_v2_preview_still_validates(self, client, auth_headers):
+        resp = client.post(
+            "/automation/preview",
+            headers=auth_headers,
+            json={
+                "name": "Broken schedule",
+                "trigger_type": "schedule",
+                "trigger_config": {},
+                "actions": [{"tool_name": "list_tasks", "arguments": {}}],
+            },
+        )
+        assert resp.status_code == 422

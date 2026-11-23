@@ -17,6 +17,7 @@ import {
   FileText,
   Workflow,
   User,
+  Search,
   ChevronLeft,
   Sparkles,
   Zap,
@@ -39,6 +40,7 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   FileText,
   Workflow,
   User,
+  Search,
 };
 
 export function Sidebar({

@@ -122,6 +122,22 @@ class AutomationCreate(BaseModel):
             raise ValueError("failure_policy must be 'stop' or 'continue'.")
         return v
 
+    def is_legacy_only(self) -> bool:
+        """True for a Phase 1 `trigger`/`action` payload with no V2 fields.
+
+        Such a payload has no structured trigger to validate or schedule; it is
+        kept for backward compatibility and executed on demand.  Explicitly
+        setting any V2 field makes this False, so a modern definition is always
+        validated.
+        """
+        return (
+            not self.actions
+            and not self.conditions
+            and bool(self.action)
+            and "trigger_type" not in self.model_fields_set
+            and "trigger_config" not in self.model_fields_set
+        )
+
     def validate_trigger(self) -> None:
         """Raise ValueError if the trigger definition cannot be executed."""
         trigger_engine.validate(
