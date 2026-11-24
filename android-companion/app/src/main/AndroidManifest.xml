@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.rajos.android">
+
+    <!-- Core permissions -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE"/>
+
+    <!-- Push notification permissions -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.VIBRATE"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+
+    <!-- Android 13+ foreground service stickers -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+
+    <!-- Exact alarm permission (Android 19+) - for scheduled reminders -->
+    <uses-permission android:name="android.permission.SET_ALARM"/>
+
+    <!-- Wake lock for reminders -->
+    <uses-permission android:name="android.permission.WAKE_LOCK"/>
+
+    <!-- READ_PHONE_STATE for call features -->
+    <uses-permission android:name="android.permission.READ_PHONE_STATE"/>
+
+    <!-- Write external storage (for docs/exports) -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.RajOS">
+
+        <!-- Main activity -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:theme="@style/Theme.RajOS.NoActionBar">
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
+
+            <!-- Handle incoming FCM messages when app is in foreground -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="rajios" android:host="deep_link"/>
+            </intent-filter>
+        </activity>
+
+        <!-- Firebase services -->
+        <service
+            android:name=".firebase.MyFirebaseMessagingService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT"/>
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".firebase.MyFirebaseInstanceIdService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.INSTANCE_ID_EVENT"/>
+            </intent-filter>
+        </service>
+
+        <!-- Notification receiver for handling received messages -->
+        <receiver
+            android:name=".firebase.NotificationReceiver"
+            android:exported="false">
+        </receiver>
+
+        <!-- Background sync receiver -->
+        <receiver
+            android:name=".firebase.SyncReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
+            </intent-filter>
+        </receiver>
+
+        <!-- WorkManager import -->
+        <provider
+            android:name="androidx.work.impl.background.systemalarm.SystemAlarmScheduler"
+            android:authorities="${applicationId}.workmanager"
+            android:exported="false"/>
+
+    </application>
+
+</manifest>
