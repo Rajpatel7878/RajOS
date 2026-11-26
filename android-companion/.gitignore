@@ -1,0 +1,13 @@
+# Firebase config is secret and specific to the project
+google-services.json
+
+# Local machine / SDK configuration
+local.properties
+
+# Gradle state and build output
+.gradle/
+build/
+app/build/
+
+# Compiled classes
+*.class

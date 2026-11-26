@@ -1,13 +1,24 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
-    id 'com.google.gms.google-services'
+    id 'org.jetbrains.kotlin.plugin.compose'
+    id 'com.google.gms.google-services' apply false
+}
+
+// Firebase: the google-services plugin reads app/google-services.json and fails the
+// build when it is missing. Apply it only when the file exists, so a fresh checkout
+// or CI build still works without the (secret) Firebase configuration.
+def googleServicesFile = file('google-services.json')
+if (googleServicesFile.exists()) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.lifecycle("google-services.json not found in app/ - Firebase is disabled for this build.")
 }
 
 android {
     namespace 'com.rajos.android'
 
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.rajos.android"
@@ -16,8 +27,13 @@ android {
         versionCode 1
         versionName "1.0"
 
-        // Enable Hermet for faster rebuilds
+        // Allow the app to exceed the 65k method limit on older devices
         multiDexEnabled true
+
+        // Base URL of the RajOS backend. 10.0.2.2 is the host machine as seen from
+        // the Android emulator; override with -PrajosBackendUrl=http://<host>:8000
+        def backendUrl = (project.findProperty("rajosBackendUrl") ?: "http://10.0.2.2:8000").toString()
+        buildConfigField "String", "BACKEND_BASE_URL", "\"${backendUrl}\""
     }
 
     buildTypes {
@@ -27,7 +43,6 @@ android {
         }
         debug {
             minifyEnabled false
-            togetherWith release {}
         }
     }
 
@@ -40,42 +55,63 @@ android {
         jvmTarget = '17'
     }
 
-    // Configure notification channels for Android O+
-    defaultConfig {
-        targetSandboxVersion 3
+    buildFeatures {
+        compose true
+        buildConfig true
+    }
+
+    packaging {
+        resources {
+            excludes += [
+                    'META-INF/DEPENDENCIES',
+                    'META-INF/INDEX.LIST',
+                    'META-INF/LICENSE*',
+                    'META-INF/NOTICE*',
+                    'META-INF/*.kotlin_module'
+            ]
+        }
     }
 }
 
 dependencies {
 
-    implementation 'androidx.core:core-ktx:1.14.0'
-    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.0'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.core:core-ktx:1.13.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.4'
+    implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.navigation:navigation-fragment-ktx:2.7.7'
     implementation 'androidx.navigation:navigation-ui-ktx:2.7.7'
 
     // Firebase Messaging for push notifications
-    implementation 'com.google.firebase:firebase-messaging:23.3.0'
+    implementation 'com.google.firebase:firebase-messaging:23.4.1'
 
     // WorkManager for background scheduling
-    implementation 'androidx.work:work-runtime-ktx:2.9.0'
+    implementation 'androidx.work:work-runtime-ktx:2.9.1'
 
     // Kotlin coroutines
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1'
 
-    // AndroidX legacy
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.0'
-    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.0'
+    // AndroidX lifecycle
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.4'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.8.4'
 
     // Room for local database (if needed)
-    implementation 'androidx.room:room-ktx:2.5.0'
-    implementation 'com.h2database:h2:2.2.224'
+    implementation 'androidx.room:room-ktx:2.6.1'
 
     // Timber for logging
     implementation 'com.jakewharton.timber:timber:5.0.1'
 
-    // Coil for image loading (if needed)
-    implementation 'androidx.coil:coil-compose:2.3.0'
+    // Coil for image loading
+    implementation 'io.coil-kt:coil-compose:2.6.0'
+
+    // Jetpack Compose
+    implementation platform('androidx.compose:compose-bom:2024.09.03')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.compose.material3:material3'
+    implementation 'androidx.activity:activity-compose:1.9.2'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
 }

@@ -15,7 +15,7 @@
 
     <!-- Reminders -->
     <string name="no_active_reminders">No active reminders</string>
-    <string name.snooze_succeeded">Snoozed successfully</string>
+    <string name="snooze_succeeded">Snoozed successfully</string>
     <string name="acknowledged_succeeded">Acknowledged successfully</string>
     <string name="dismissed_succeeded">Dismissed successfully</string>
 

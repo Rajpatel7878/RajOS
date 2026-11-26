@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Base application theme. The UI itself is built with Jetpack Compose. -->
+    <style name="Theme.RajOS" parent="Theme.AppCompat.DayNight">
+        <item name="colorPrimary">@color/rajos_primary</item>
+        <item name="colorPrimaryDark">@color/rajos_primary_dark</item>
+        <item name="colorAccent">@color/rajos_accent</item>
+    </style>
+
+    <!-- Theme used by the launcher activity: no system action bar. -->
+    <style name="Theme.RajOS.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/rajos_primary</item>
+        <item name="colorPrimaryDark">@color/rajos_primary_dark</item>
+        <item name="colorAccent">@color/rajos_accent</item>
+        <item name="windowActionBar">false</item>
+        <item name="windowNoTitle">true</item>
+    </style>
+
+</resources>
