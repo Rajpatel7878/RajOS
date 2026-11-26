@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 
 from app.database.connection import get_db
 from app.models.user import User
-from app.security.jwt import create_access_token
+from app.security.jwt import create_access_token, create_refresh_token
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ class GoogleUserPayload(BaseModel):
 def google_auth(payload: GoogleUserPayload, db: Session = Depends(get_db)):
     """
     Creates or retrieves a RajOS user from Google OAuth data and
-    returns a RajOS JWT access token.
+    returns access + refresh tokens.
     """
     # Derive a stable password from the google_id so the account
     # can also be accessed via the normal /login endpoint if needed.
@@ -36,10 +36,11 @@ def google_auth(payload: GoogleUserPayload, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == payload.email).first()
 
     if existing:
-        # User already exists — return a fresh token
-        token = create_access_token({"sub": existing.email})
+        # User already exists — return a fresh token pair
+        access, refresh = _token_response(existing.email)
         return {
-            "access_token": token,
+            "access_token": access,
+            "refresh_token": refresh,
             "token_type": "bearer",
             "user": {"id": existing.id, "username": existing.username, "email": existing.email},
             "is_new": False,
@@ -56,10 +57,11 @@ def google_auth(payload: GoogleUserPayload, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    token = create_access_token({"sub": new_user.email})
+    access, refresh = _token_response(new_user.email)
 
     return {
-        "access_token": token,
+        "access_token": access,
+        "refresh_token": refresh,
         "token_type": "bearer",
         "user": {"id": new_user.id, "username": new_user.username, "email": new_user.email},
         "is_new": True,

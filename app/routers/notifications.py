@@ -1,7 +1,11 @@
-﻿"""
-Notifications Router — manage push subscriptions and send push alerts.
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""Notifications Router — manage push subscriptions and send push alerts.
+
+Following RajOS conventions. Endpoints: subscribe, unsubscribe, send-test, summary, task-summary, register-fcm-token.
 """
 
+import logging
 from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -15,8 +19,9 @@ from app.models.push_subscription import PushSubscription
 from app.security.dependencies import get_current_user
 from app.services.push_service import push_service
 
-router = APIRouter(prefix="/notifications", tags=["Notifications"])
+logger = logging.getLogger(__name__)
 
+router = APIRouter(prefix="/notifications", tags=["Notifications"])
 
 def get_db():
     db = SessionLocal()
@@ -25,8 +30,7 @@ def get_db():
     finally:
         db.close()
 
-
-# ── Schemas ──────────────────────────────────────────────────────────────────
+# Schemas
 
 class PushSubscribeRequest(BaseModel):
     endpoint: str
@@ -35,12 +39,11 @@ class PushSubscribeRequest(BaseModel):
     device_label: Optional[str] = "Browser"
 
 
-class SendTestRequest(BaseModel):
-    title: Optional[str] = "🔔 RajOS Test Notification"
-    body: Optional[str] = "Push notifications are working!"
+class FCMTokenRequest(BaseModel):
+    token: str  # FCM registration token
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# Endpoints
 
 @router.post("/subscribe")
 def subscribe(
@@ -49,7 +52,6 @@ def subscribe(
     user: User = Depends(get_current_user),
 ):
     """Save browser push subscription for the authenticated user."""
-    # Avoid duplicate subscriptions from the same endpoint
     existing = db.query(PushSubscription).filter(
         PushSubscription.user_id == user.id,
         PushSubscription.endpoint == req.endpoint,
@@ -92,20 +94,92 @@ def unsubscribe(
     return {"message": "Unsubscribed"}
 
 
+@router.post("/register-fcm-token")
+def register_fcm_token(
+    req: FCMTokenRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Register FCM token for Android device.
+
+    Stores the Firebase Cloud Messaging registration token
+    for the authenticated user's device.
+    """
+    # Find an existing subscription for this token, otherwise reuse the user's
+    # first subscription or create an FCM-only device entry.
+    sub = db.query(PushSubscription).filter(
+        PushSubscription.user_id == user.id,
+        PushSubscription.push_token == req.token,
+    ).first()
+
+    if not sub:
+        sub = db.query(PushSubscription).filter(
+            PushSubscription.user_id == user.id
+        ).first()
+
+    if not sub:
+        # endpoint / p256dh / auth are NOT NULL in the model even for FCM-only devices
+        sub = PushSubscription(
+            user_id=user.id,
+            endpoint=f"fcm:{req.token}",
+            p256dh="n/a",
+            auth="n/a",
+            device_label="Android",
+        )
+        db.add(sub)
+        db.commit()
+        db.refresh(sub)
+
+    # Store the FCM token
+    sub.push_token = req.token
+    db.commit()
+    db.refresh(sub)
+
+    logger.info("FCM token registered for user %s: token=%s...", user.id, req.token[:20] if len(req.token) > 20 else req.token)
+
+    return {
+        "message": "FCM token registered successfully",
+        "push_token": sub.push_token,
+        "device_id": sub.id,
+    }
+
+
 @router.post("/send-test")
 def send_test(
     req: SendTestRequest,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Send a test push notification to all of the user devices."""
-    sent = push_service.send_to_user(
-        user.id, db,
-        title=req.title,
-        body=req.body,
-        url="/dashboard",
-    )
-    return {"message": f"Test notification sent to {sent} device(s)", "sent": sent}
+    """Send a test push notification to all of the user devices.
+
+    Sends via both Web Push and FCM to all registered devices.
+    Returns counts for each channel.
+    """
+    # Send via Web Push
+    webpush_result = {"status": "no_subscriptions", "sent": 0}
+    try:
+        from app.database.connection import SessionLocal as SessionLocal2
+        db2 = SessionLocal2()
+        webpush_result = push_service.send_to_user_webpush(user.id, db2, req.title, req.body)
+        db2.close()
+    except Exception as e:
+        webpush_result = {"status": "error", "reason": str(e)}
+
+    # Send via FCM
+    fcm_result = {"status": "no_subscriptions", "sent": 0}
+    try:
+        from app.database.connection import SessionLocal as SessionLocal3
+        db3 = SessionLocal3()
+        fcm_result = push_service.send_fcm_to_user(user.id, db3, req.title, req.body)
+        db3.close()
+    except Exception as e:
+        fcm_result = {"status": "error", "reason": str(e)}
+
+    return {
+        "message": "Test notification processed",
+        "webpush": webpush_result,
+        "fcm": fcm_result,
+    }
 
 
 @router.get("/summary")
@@ -125,7 +199,7 @@ def get_summary(
     overdue = db.query(Task).filter(
         Task.user_id == user.id,
         Task.completed == False,
-        Task.due_date != None,
+        Task.due_date is not None,
         Task.due_date < now,
     ).count()
     due_today = db.query(Task).filter(
@@ -155,9 +229,32 @@ def send_task_summary(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Manually trigger a task summary push notification."""
-    ok = push_service.send_task_summary(user.id, db)
+    """Manually trigger a task summary push notification.
+
+    Sends task summary via both Web Push and FCM to all user devices.
+    """
+    # Send via FCM
+    fcm_result = push_service.send_task_summary_fcm(user.id, db)
+
+    # Send via Web Push
+    webpush_result = {"status": "no_subscriptions", "sent": 0}
+    try:
+        from app.database.connection import SessionLocal as SessionLocal2
+        db2 = SessionLocal2()
+        webpush_result = push_service.send_task_summary_webpush(user.id, db2)
+        db2.close()
+    except Exception as e:
+        webpush_result = {"status": "error", "reason": str(e)}
+
+    sent_count = 0
+    if fcm_result.get("status") == "completed":
+        sent_count += fcm_result.get("sent", 0)
+    if webpush_result.get("status") in ("completed",):
+        sent_count += webpush_result.get("sent", 0)
+
     return {
-        "message": "Task summary sent" if ok else "No subscriptions found",
-        "sent": ok,
+        "message": f"Task summary sent via {sent_count} channel(s)" if sent_count > 0 else "No subscriptions found",
+        "sent": sent_count,
+        "fcm": fcm_result,
+        "webpush": webpush_result,
     }
