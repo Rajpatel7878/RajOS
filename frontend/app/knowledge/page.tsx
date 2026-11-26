@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import dynamic from "next/dynamic";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Upload,
@@ -23,8 +24,20 @@ import { AppShell } from "@/components/app-shell";
 import { GlassCard } from "@/components/glass-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { KnowledgeGraph } from "@/components/knowledge-graph";
 import { cn } from "@/lib/utils";
+
+// Lazy-load the WebGL graph so it never renders during SSR/prerender.
+const KnowledgeGraph = dynamic(
+  () => import("@/components/knowledge-graph").then((m) => ({ default: m.KnowledgeGraph })),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full w-full items-center justify-center rounded-xl border border-white/5 bg-white/[0.02]">
+        <div className="h-16 w-16 animate-pulse rounded-full border border-sky-400/20 bg-sky-500/10" />
+      </div>
+    ),
+  },
+);
 import {
   getDocuments,
   searchKnowledge,
